@@ -16,7 +16,13 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Install Rust toolchain
-      uses: dtolnay/rust-toolchain@stable
+      uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: stable
+
+    - name: Verify Rust version
+      run: |
+        echo "Code Quality - Using Rust version: $(rustc --version)"
 
     - name: Cache dependencies
       uses: Swatinem/rust-cache@v2

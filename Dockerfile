@@ -10,7 +10,7 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y \
     libssl-dev \
     clang \
     && rm -rf /var/lib/apt/lists/* \
-    && curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain 1.80.0
+    && curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable
 
 ENV PATH="/root/.cargo/bin:${PATH}"
 
