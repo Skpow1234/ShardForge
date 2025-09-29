@@ -1,12 +1,18 @@
 # Multi-stage Docker build for ShardForge
-FROM rust:1.80-slim AS builder
+# Use Debian bookworm-slim for better security control
+FROM debian:bookworm-slim AS builder
 
-# Install build dependencies
-RUN apt-get update && apt-get install -y \
+# Install Rust and build dependencies with security updates
+RUN apt-get update && apt-get upgrade -y && apt-get install -y \
+    curl \
+    build-essential \
     pkg-config \
     libssl-dev \
     clang \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain 1.80.0
+
+ENV PATH="/root/.cargo/bin:${PATH}"
 
 WORKDIR /usr/src/shardforge
 
@@ -27,9 +33,10 @@ RUN cargo build --release --target x86_64-unknown-linux-gnu
 # Runtime stage
 FROM debian:bookworm-slim
 
-# Install runtime dependencies
-RUN apt-get update && apt-get install -y \
+# Install runtime dependencies with security updates
+RUN apt-get update && apt-get upgrade -y && apt-get install -y \
     ca-certificates \
+    openssl \
     && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user

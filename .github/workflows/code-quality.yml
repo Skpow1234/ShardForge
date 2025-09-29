@@ -119,7 +119,7 @@ jobs:
       uses: dtolnay/rust-toolchain@nightly
 
     - name: Cache dependencies
-    - uses: Swatinem/rust-cache@v2
+      uses: Swatinem/rust-cache@v2
 
     - name: Install cargo-fuzz
       run: cargo install cargo-fuzz

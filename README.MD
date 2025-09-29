@@ -15,11 +15,83 @@ ShardForge is an ambitious distributed database system built in Rust, designed t
 
 ## Quick Start
 
+### 🚀 Using Docker (Recommended)
+
+**Prerequisites:** [Docker](https://docker.com/get-started) installed on your system.
+
 ```bash
-# Quick start for development
-shardforge init --single-node --data-dir ./data
-shardforge start --config shardforge.toml
+# Create data directory
+mkdir -p data
+
+# Pull the latest image
+docker pull shardforge/shardforge:latest
+
+# Initialize database
+docker run --rm -v $(pwd)/data:/data shardforge/shardforge:latest shardforge init --single-node --data-dir /data
+
+# Start the database server
+docker run -d --name shardforge-db -v $(pwd)/data:/data -p 5432:5432 shardforge/shardforge:latest shardforge start --config /data/shardforge.toml
+
+# Check status
+docker run --rm --network container:shardforge-db shardforge/shardforge:latest shardforge status
+
+# Execute SQL queries
+docker run -it --rm --network container:shardforge-db shardforge/shardforge:latest shardforge sql "SELECT 1 as welcome"
+
+# Stop the database
+docker stop shardforge-db && docker rm shardforge-db
 ```
+
+### 🛠️ Build from Source
+
+**Prerequisites:** [Rust 1.80+](https://rustup.rs/) and system dependencies (OpenSSL, pkg-config).
+
+```bash
+# Clone and build
+git clone https://github.com/shardforge/shardforge.git
+cd shardforge
+
+# Build in release mode
+cargo build --release
+
+# Initialize database
+./target/release/shardforge init --single-node --data-dir ./data
+
+# Start the database server
+./target/release/shardforge start --config shardforge.toml
+
+# Check status
+./target/release/shardforge status --detailed
+
+# Execute SQL queries
+./target/release/shardforge sql "SELECT 1 as welcome"
+```
+
+### 🐳 Development with Docker Compose
+
+For local development with persistent storage:
+
+```bash
+# Start development environment
+docker-compose up -d
+
+# Initialize database (first time only)
+docker-compose exec shardforge shardforge init --single-node --data-dir /data/shardforge
+
+# Check database status
+docker-compose exec shardforge shardforge status --detailed
+
+# Execute SQL queries
+docker-compose exec shardforge shardforge sql "SELECT 1 as welcome"
+
+# View logs
+docker-compose logs -f shardforge
+
+# Stop environment
+docker-compose down
+```
+
+> **Note:** ShardForge is currently in Phase 1 (Foundation) of development. The CLI and basic infrastructure are implemented, but full database server functionality, SQL engine, and distributed consensus are planned for future phases.
 
 ## Documentation
 
@@ -46,4 +118,12 @@ shardforge start --config shardforge.toml
 
 ## Current Status
 
-This is a specification document for a planned distributed database system. The project is in the design and planning phase.
+ShardForge is in **Phase 1 (Foundation)** of development. ✅ **Implemented:**
+
+- Core Rust workspace structure with modular crates
+- CLI interface with init, start, status, and sql commands
+- Docker containerization and CI/CD pipeline
+- Comprehensive testing infrastructure
+- Configuration management and error handling
+
+🚧 **In Development:** Full database server, SQL engine, RAFT consensus, and distributed features (Phases 2-4).
