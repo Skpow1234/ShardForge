@@ -94,8 +94,10 @@ mod tests {
         let engine = StorageEngineFactory::create(
             crate::config::StorageEngineType::Memory,
             &config,
-            temp_dir.path()
-        ).await.unwrap();
+            temp_dir.path(),
+        )
+        .await
+        .unwrap();
 
         // Test basic operations
         let key = Key::from_string("test_key");
@@ -124,8 +126,10 @@ mod tests {
         let engine = StorageEngineFactory::create(
             crate::config::StorageEngineType::Memory,
             &config,
-            temp_dir.path()
-        ).await.unwrap();
+            temp_dir.path(),
+        )
+        .await
+        .unwrap();
 
         let operations = vec![
             WriteOperation::Put {
@@ -136,9 +140,7 @@ mod tests {
                 key: Key::from_string("key2"),
                 value: Value::from_string("value2"),
             },
-            WriteOperation::Delete {
-                key: Key::from_string("key1"),
-            },
+            WriteOperation::Delete { key: Key::from_string("key1") },
         ];
 
         engine.batch_write(operations).await.unwrap();

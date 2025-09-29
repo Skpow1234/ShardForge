@@ -1,12 +1,12 @@
 //! In-memory storage engine for testing
 
 use async_trait::async_trait;
-use shardforge_core::{Key, Value, Result};
+use shardforge_core::{Key, Result, Value};
 use std::collections::BTreeMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-use super::{StorageEngine, StorageConfig, StorageStats, WriteOperation};
+use super::{StorageConfig, StorageEngine, StorageStats, WriteOperation};
 
 /// In-memory storage engine for testing and development
 pub struct MemoryEngine {
@@ -78,9 +78,7 @@ impl StorageEngine for MemoryEngine {
 
     fn stats(&self) -> StorageStats {
         // Note: This is a snapshot, stats may change after this call
-        futures::executor::block_on(async {
-            self.stats.read().await.clone()
-        })
+        futures::executor::block_on(async { self.stats.read().await.clone() })
     }
 
     async fn flush(&self) -> Result<()> {
@@ -139,9 +137,7 @@ mod tests {
                 key: Key::from_string("key2"),
                 value: Value::from_string("value2"),
             },
-            WriteOperation::Delete {
-                key: Key::from_string("key1"),
-            },
+            WriteOperation::Delete { key: Key::from_string("key1") },
         ];
 
         engine.batch_write(operations).await.unwrap();

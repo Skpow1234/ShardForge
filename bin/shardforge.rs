@@ -1,6 +1,6 @@
 //! ShardForge Command Line Interface
 
-use clap::{Parser, Subcommand, CommandFactory};
+use clap::{CommandFactory, Parser, Subcommand};
 use shardforge::core::Result;
 use std::process;
 
@@ -59,21 +59,11 @@ async fn main() {
     let cli = Cli::parse();
 
     let result = match cli.command {
-        Some(Commands::Init { data_dir, single_node }) => {
-            handle_init(&data_dir, single_node).await
-        }
-        Some(Commands::Start { config }) => {
-            handle_start(&config).await
-        }
-        Some(Commands::Status { detailed }) => {
-            handle_status(detailed).await
-        }
-        Some(Commands::Sql { query, database }) => {
-            handle_sql(query.as_deref(), &database).await
-        }
-        Some(Commands::Version) => {
-            handle_version().await
-        }
+        Some(Commands::Init { data_dir, single_node }) => handle_init(&data_dir, single_node).await,
+        Some(Commands::Start { config }) => handle_start(&config).await,
+        Some(Commands::Status { detailed }) => handle_status(detailed).await,
+        Some(Commands::Sql { query, database }) => handle_sql(query.as_deref(), &database).await,
+        Some(Commands::Version) => handle_version().await,
         None => {
             // No subcommand provided, show help
             let _ = Cli::command().print_help();
@@ -94,9 +84,10 @@ async fn handle_init(data_dir: &str, single_node: bool) -> Result<()> {
 
     // Create data directory if it doesn't exist
     std::fs::create_dir_all(data_dir).map_err(|e| {
-        shardforge::core::ShardForgeError::Internal(
-            format!("Failed to create data directory: {}", e)
-        )
+        shardforge::core::ShardForgeError::Internal(format!(
+            "Failed to create data directory: {}",
+            e
+        ))
     })?;
 
     // Create default configuration file
@@ -117,12 +108,14 @@ engine = "memory"
 [logging]
 level = "info"
 format = "pretty"
-"#.replace("${DATA_DIR}", data_dir);
+"#
+        .replace("${DATA_DIR}", data_dir);
 
         std::fs::write(&config_path, default_config).map_err(|e| {
-            shardforge::core::ShardForgeError::Internal(
-                format!("Failed to create config file: {}", e)
-            )
+            shardforge::core::ShardForgeError::Internal(format!(
+                "Failed to create config file: {}",
+                e
+            ))
         })?;
         println!("Created default configuration at: {}", config_path.display());
     }

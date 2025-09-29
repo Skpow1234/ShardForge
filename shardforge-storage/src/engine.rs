@@ -1,7 +1,7 @@
 //! Storage engine abstraction
 
 use async_trait::async_trait;
-use shardforge_core::{Key, Value, Result, Timestamp};
+use shardforge_core::{Key, Result, Timestamp, Value};
 use std::collections::HashMap;
 
 /// Storage engine statistics
@@ -124,8 +124,9 @@ impl StorageEngineFactory {
             _ => Err(shardforge_core::ShardForgeError::Storage {
                 source: std::io::Error::new(
                     std::io::ErrorKind::Unsupported,
-                    "No storage engine features enabled"
-                ).into(),
+                    "No storage engine features enabled",
+                )
+                .into(),
             }),
         }
     }

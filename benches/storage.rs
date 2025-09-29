@@ -2,7 +2,7 @@
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use shardforge_core::{Key, Value};
-use shardforge_storage::{StorageEngine, StorageEngineFactory, StorageConfig, WriteOperation};
+use shardforge_storage::{StorageConfig, StorageEngine, StorageEngineFactory, WriteOperation};
 use tempfile::TempDir;
 
 fn bench_storage_operations(c: &mut Criterion) {
@@ -15,8 +15,10 @@ fn bench_storage_operations(c: &mut Criterion) {
         let engine = StorageEngineFactory::create(
             shardforge_config::StorageEngineType::Memory,
             &config,
-            temp_dir.path()
-        ).await.unwrap();
+            temp_dir.path(),
+        )
+        .await
+        .unwrap();
 
         bench_single_operations(&engine, c).await;
         bench_batch_operations(&engine, c).await;
@@ -203,7 +205,8 @@ async fn bench_concurrent_operations(engine: &Box<dyn StorageEngine>, c: &mut Cr
 
                     let handle = tokio::spawn(async move {
                         for i in 0..10 {
-                            let key = Key::from_string(&format!("concurrent_write_{}_{}", thread_id, i));
+                            let key =
+                                Key::from_string(&format!("concurrent_write_{}_{}", thread_id, i));
                             let value = Value::from_string(&format!("value_{}_{}", thread_id, i));
                             engine_ref.put(key, value).await.unwrap();
                         }

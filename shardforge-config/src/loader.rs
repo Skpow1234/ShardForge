@@ -1,6 +1,6 @@
 //! Configuration loading and management
 
-use crate::{ShardForgeConfig, ConfigError};
+use crate::{ConfigError, ShardForgeConfig};
 use shardforge_core::Result;
 use std::path::Path;
 
@@ -36,10 +36,8 @@ impl ConfigLoader {
         let mut builder = config::Config::builder();
 
         // Start with default configuration
-        builder = builder.add_source(config::File::from_str(
-            &self.default_config(),
-            config::FileFormat::Toml,
-        ));
+        builder = builder
+            .add_source(config::File::from_str(&self.default_config(), config::FileFormat::Toml));
 
         // Add system-wide configuration
         if let Some(path) = self.find_config_file("config.toml") {
@@ -58,24 +56,19 @@ impl ConfigLoader {
 
         // Add environment variables with SHARDFORGE_ prefix
         builder = builder.add_source(
-            config::Environment::with_prefix("SHARDFORGE")
-                .separator("_")
-                .try_parsing(true)
+            config::Environment::with_prefix("SHARDFORGE").separator("_").try_parsing(true),
         );
 
         // Build configuration
-        let config = builder.build().map_err(|e| {
-            shardforge_core::ShardForgeError::Config {
-                message: format!("Failed to build configuration: {}", e),
-            }
+        let config = builder.build().map_err(|e| shardforge_core::ShardForgeError::Config {
+            message: format!("Failed to build configuration: {}", e),
         })?;
 
         // Deserialize into our config structure
-        let mut shardforge_config: ShardForgeConfig = config.try_deserialize().map_err(|e| {
-            shardforge_core::ShardForgeError::Config {
+        let mut shardforge_config: ShardForgeConfig =
+            config.try_deserialize().map_err(|e| shardforge_core::ShardForgeError::Config {
                 message: format!("Failed to deserialize configuration: {}", e),
-            }
-        })?;
+            })?;
 
         // Post-process configuration
         self.post_process(&mut shardforge_config)?;
@@ -88,32 +81,25 @@ impl ConfigLoader {
         let mut builder = config::Config::builder();
 
         // Start with default configuration
-        builder = builder.add_source(config::File::from_str(
-            &self.default_config(),
-            config::FileFormat::Toml,
-        ));
+        builder = builder
+            .add_source(config::File::from_str(&self.default_config(), config::FileFormat::Toml));
 
         // Add the specified file
         builder = builder.add_source(config::File::with_name(path.as_ref().to_str().unwrap()));
 
         // Add environment variables
         builder = builder.add_source(
-            config::Environment::with_prefix("SHARDFORGE")
-                .separator("_")
-                .try_parsing(true)
+            config::Environment::with_prefix("SHARDFORGE").separator("_").try_parsing(true),
         );
 
-        let config = builder.build().map_err(|e| {
-            shardforge_core::ShardForgeError::Config {
-                message: format!("Failed to build configuration: {}", e),
-            }
+        let config = builder.build().map_err(|e| shardforge_core::ShardForgeError::Config {
+            message: format!("Failed to build configuration: {}", e),
         })?;
 
-        let mut shardforge_config: ShardForgeConfig = config.try_deserialize().map_err(|e| {
-            shardforge_core::ShardForgeError::Config {
+        let mut shardforge_config: ShardForgeConfig =
+            config.try_deserialize().map_err(|e| shardforge_core::ShardForgeError::Config {
                 message: format!("Failed to deserialize configuration: {}", e),
-            }
-        })?;
+            })?;
 
         self.post_process(&mut shardforge_config)?;
 
@@ -121,7 +107,11 @@ impl ConfigLoader {
     }
 
     /// Save current configuration to a file
-    pub async fn save_to_file<P: AsRef<Path>>(&self, config: &ShardForgeConfig, path: P) -> Result<()> {
+    pub async fn save_to_file<P: AsRef<Path>>(
+        &self,
+        config: &ShardForgeConfig,
+        path: P,
+    ) -> Result<()> {
         let toml_string = toml::to_string_pretty(config).map_err(|e| {
             shardforge_core::ShardForgeError::Config {
                 message: format!("Failed to serialize configuration: {}", e),
@@ -191,33 +181,29 @@ impl ConfigLoader {
 
             if let Some(cert_path) = &config.network.certificate_path {
                 if cert_path.starts_with("~") {
-                    config.network.certificate_path = Some(
-                        cert_path.to_string_lossy().replacen("~", &home_str, 1).into()
-                    );
+                    config.network.certificate_path =
+                        Some(cert_path.to_string_lossy().replacen("~", &home_str, 1).into());
                 }
             }
 
             if let Some(key_path) = &config.network.private_key_path {
                 if key_path.starts_with("~") {
-                    config.network.private_key_path = Some(
-                        key_path.to_string_lossy().replacen("~", &home_str, 1).into()
-                    );
+                    config.network.private_key_path =
+                        Some(key_path.to_string_lossy().replacen("~", &home_str, 1).into());
                 }
             }
 
             if let Some(ca_path) = &config.network.ca_certificate_path {
                 if ca_path.starts_with("~") {
-                    config.network.ca_certificate_path = Some(
-                        ca_path.to_string_lossy().replacen("~", &home_str, 1).into()
-                    );
+                    config.network.ca_certificate_path =
+                        Some(ca_path.to_string_lossy().replacen("~", &home_str, 1).into());
                 }
             }
 
             if let Some(log_path) = &config.logging.file_path {
                 if log_path.starts_with("~") {
-                    config.logging.file_path = Some(
-                        log_path.to_string_lossy().replacen("~", &home_str, 1).into()
-                    );
+                    config.logging.file_path =
+                        Some(log_path.to_string_lossy().replacen("~", &home_str, 1).into());
                 }
             }
         }

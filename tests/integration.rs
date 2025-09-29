@@ -1,7 +1,7 @@
 //! Full system integration tests
 
-use shardforge_core::*;
 use shardforge_config::*;
+use shardforge_core::*;
 use shardforge_storage::*;
 use tempfile::TempDir;
 
@@ -26,7 +26,8 @@ async fn test_full_system_integration() {
 
         [logging]
         level = "debug"
-    "#.replace("${DATA_DIR}", data_dir.to_str().unwrap());
+    "#
+    .replace("${DATA_DIR}", data_dir.to_str().unwrap());
 
     let config_path = temp_dir.path().join("integration.toml");
     tokio::fs::write(&config_path, config_content).await.unwrap();
@@ -51,11 +52,9 @@ async fn test_full_system_integration() {
         },
     };
 
-    let engine = StorageEngineFactory::create(
-        config.storage.engine,
-        &storage_config,
-        &data_dir
-    ).await.unwrap();
+    let engine = StorageEngineFactory::create(config.storage.engine, &storage_config, &data_dir)
+        .await
+        .unwrap();
 
     // 3. Test full CRUD operations
     let test_cases = vec![
@@ -92,18 +91,20 @@ async fn test_full_system_integration() {
             key: Key::from_string("batch:key2"),
             value: Value::from_string("batch_value_2"),
         },
-        WriteOperation::Delete {
-            key: Key::from_string("user:1"),
-        },
+        WriteOperation::Delete { key: Key::from_string("user:1") },
     ];
 
     engine.batch_write(batch_ops).await.unwrap();
 
     // Verify batch operations
-    assert_eq!(engine.get(&Key::from_string("batch:key1")).await.unwrap(),
-               Some(Value::from_string("batch_value_1")));
-    assert_eq!(engine.get(&Key::from_string("batch:key2")).await.unwrap(),
-               Some(Value::from_string("batch_value_2")));
+    assert_eq!(
+        engine.get(&Key::from_string("batch:key1")).await.unwrap(),
+        Some(Value::from_string("batch_value_1"))
+    );
+    assert_eq!(
+        engine.get(&Key::from_string("batch:key2")).await.unwrap(),
+        Some(Value::from_string("batch_value_2"))
+    );
     assert_eq!(engine.get(&Key::from_string("user:1")).await.unwrap(), None);
 
     // Test statistics
@@ -127,8 +128,10 @@ async fn test_concurrent_workload_simulation() {
     let engine = StorageEngineFactory::create(
         shardforge_config::StorageEngineType::Memory,
         &config,
-        temp_dir.path()
-    ).await.unwrap();
+        temp_dir.path(),
+    )
+    .await
+    .unwrap();
 
     let num_workers = 10;
     let operations_per_worker = 100;
@@ -200,8 +203,10 @@ async fn test_error_handling_and_recovery() {
     let engine = StorageEngineFactory::create(
         shardforge_config::StorageEngineType::Memory,
         &config,
-        temp_dir.path()
-    ).await.unwrap();
+        temp_dir.path(),
+    )
+    .await
+    .unwrap();
 
     // Test graceful handling of various error conditions
     let nonexistent_key = Key::from_string("nonexistent");
@@ -225,16 +230,16 @@ async fn test_error_handling_and_recovery() {
             key: Key::from_string("valid_key"),
             value: Value::from_string("valid_value"),
         },
-        WriteOperation::Delete {
-            key: Key::from_string("nonexistent_key"),
-        },
+        WriteOperation::Delete { key: Key::from_string("nonexistent_key") },
     ];
 
     engine.batch_write(batch_ops).await.unwrap();
 
     // Verify results
-    assert_eq!(engine.get(&Key::from_string("valid_key")).await.unwrap(),
-               Some(Value::from_string("valid_value")));
+    assert_eq!(
+        engine.get(&Key::from_string("valid_key")).await.unwrap(),
+        Some(Value::from_string("valid_value"))
+    );
 
     engine.close().await.unwrap();
 
@@ -249,8 +254,10 @@ async fn test_system_performance_baseline() {
     let engine = StorageEngineFactory::create(
         shardforge_config::StorageEngineType::Memory,
         &config,
-        temp_dir.path()
-    ).await.unwrap();
+        temp_dir.path(),
+    )
+    .await
+    .unwrap();
 
     let num_operations = 1000;
 

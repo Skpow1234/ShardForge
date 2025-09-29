@@ -59,9 +59,12 @@ mod tests {
             _ => panic!("Wrong error variant"),
         }
 
-        let storage_err = ShardForgeError::storage(std::io::Error::new(std::io::ErrorKind::NotFound, "file not found"));
+        let storage_err = ShardForgeError::storage(std::io::Error::new(
+            std::io::ErrorKind::NotFound,
+            "file not found",
+        ));
         match storage_err {
-            ShardForgeError::Storage(_) => {},
+            ShardForgeError::Storage(_) => {}
             _ => panic!("Wrong error variant"),
         }
     }

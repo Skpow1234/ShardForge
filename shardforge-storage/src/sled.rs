@@ -1,12 +1,12 @@
 //! Sled storage engine implementation
 
+use super::{StorageConfig, StorageEngine, StorageStats, WriteOperation};
 use async_trait::async_trait;
-use shardforge_core::{Key, Value, Result};
+use shardforge_core::{Key, Result, Value};
 use std::path::Path;
-use super::{StorageEngine, StorageConfig, StorageStats, WriteOperation};
 
 #[cfg(feature = "sled")]
-use sled::{Db, Config};
+use sled::{Config, Db};
 
 #[cfg(feature = "sled")]
 pub struct SledEngine {
@@ -21,16 +21,11 @@ impl SledEngine {
             .path(data_path)
             .cache_capacity(config.block_cache_size_mb * 1024 * 1024);
 
-        let db = sled_config.open().map_err(|e| {
-            shardforge_core::ShardForgeError::Storage {
-                source: Box::new(e),
-            }
-        })?;
+        let db = sled_config
+            .open()
+            .map_err(|e| shardforge_core::ShardForgeError::Storage { source: Box::new(e) })?;
 
-        Ok(Self {
-            db,
-            stats: StorageStats::default(),
-        })
+        Ok(Self { db, stats: StorageStats::default() })
     }
 }
 
@@ -38,39 +33,33 @@ impl SledEngine {
 #[async_trait]
 impl StorageEngine for SledEngine {
     async fn get(&self, key: &Key) -> Result<Option<Value>> {
-        let result = self.db.get(key.as_slice()).map_err(|e| {
-            shardforge_core::ShardForgeError::Storage {
-                source: Box::new(e),
-            }
-        })?;
+        let result = self
+            .db
+            .get(key.as_slice())
+            .map_err(|e| shardforge_core::ShardForgeError::Storage { source: Box::new(e) })?;
 
         Ok(result.map(|ivec| Value::new(ivec.to_vec())))
     }
 
     async fn put(&self, key: Key, value: Value) -> Result<()> {
-        self.db.insert(key.as_slice(), value.as_slice()).map_err(|e| {
-            shardforge_core::ShardForgeError::Storage {
-                source: Box::new(e),
-            }
-        })?;
+        self.db
+            .insert(key.as_slice(), value.as_slice())
+            .map_err(|e| shardforge_core::ShardForgeError::Storage { source: Box::new(e) })?;
         Ok(())
     }
 
     async fn delete(&self, key: &Key) -> Result<()> {
-        self.db.remove(key.as_slice()).map_err(|e| {
-            shardforge_core::ShardForgeError::Storage {
-                source: Box::new(e),
-            }
-        })?;
+        self.db
+            .remove(key.as_slice())
+            .map_err(|e| shardforge_core::ShardForgeError::Storage { source: Box::new(e) })?;
         Ok(())
     }
 
     async fn exists(&self, key: &Key) -> Result<bool> {
-        let result = self.db.contains_key(key.as_slice()).map_err(|e| {
-            shardforge_core::ShardForgeError::Storage {
-                source: Box::new(e),
-            }
-        })?;
+        let result = self
+            .db
+            .contains_key(key.as_slice())
+            .map_err(|e| shardforge_core::ShardForgeError::Storage { source: Box::new(e) })?;
         Ok(result)
     }
 
@@ -88,11 +77,9 @@ impl StorageEngine for SledEngine {
             }
         }
 
-        self.db.apply_batch(batch).map_err(|e| {
-            shardforge_core::ShardForgeError::Storage {
-                source: Box::new(e),
-            }
-        })?;
+        self.db
+            .apply_batch(batch)
+            .map_err(|e| shardforge_core::ShardForgeError::Storage { source: Box::new(e) })?;
         Ok(())
     }
 
@@ -102,21 +89,17 @@ impl StorageEngine for SledEngine {
     }
 
     async fn flush(&self) -> Result<()> {
-        self.db.flush().map_err(|e| {
-            shardforge_core::ShardForgeError::Storage {
-                source: Box::new(e),
-            }
-        })?;
+        self.db
+            .flush()
+            .map_err(|e| shardforge_core::ShardForgeError::Storage { source: Box::new(e) })?;
         Ok(())
     }
 
     async fn compact(&self) -> Result<()> {
         // Sled doesn't have explicit compaction, but flush ensures consistency
-        self.db.flush().map_err(|e| {
-            shardforge_core::ShardForgeError::Storage {
-                source: Box::new(e),
-            }
-        })?;
+        self.db
+            .flush()
+            .map_err(|e| shardforge_core::ShardForgeError::Storage { source: Box::new(e) })?;
         Ok(())
     }
 
@@ -135,8 +118,9 @@ impl SledEngine {
         Err(shardforge_core::ShardForgeError::Storage {
             source: std::io::Error::new(
                 std::io::ErrorKind::Unsupported,
-                "Sled storage engine not enabled (compile with --features sled)"
-            ).into(),
+                "Sled storage engine not enabled (compile with --features sled)",
+            )
+            .into(),
         })
     }
 }

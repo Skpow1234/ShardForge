@@ -116,10 +116,11 @@ impl ConfigValidator {
         }
 
         // Check for reasonable memory usage
-        let total_memory_mb = storage.block_cache_size_mb +
-                             (storage.write_buffer_size_mb * storage.max_write_buffer_number);
+        let total_memory_mb = storage.block_cache_size_mb
+            + (storage.write_buffer_size_mb * storage.max_write_buffer_number);
 
-        if total_memory_mb > 1024 * 1024 { // 1TB
+        if total_memory_mb > 1024 * 1024 {
+            // 1TB
             tracing::warn!("Storage memory usage is very high: {} MB", total_memory_mb);
         }
 
@@ -145,7 +146,10 @@ impl ConfigValidator {
             if let Some(cert_path) = &network.certificate_path {
                 if !cert_path.exists() {
                     return Err(shardforge_core::ShardForgeError::Config {
-                        message: format!("Certificate file does not exist: {}", cert_path.display()),
+                        message: format!(
+                            "Certificate file does not exist: {}",
+                            cert_path.display()
+                        ),
                     });
                 }
             }
@@ -161,7 +165,10 @@ impl ConfigValidator {
             if let Some(ca_path) = &network.ca_certificate_path {
                 if !ca_path.exists() {
                     return Err(shardforge_core::ShardForgeError::Config {
-                        message: format!("CA certificate file does not exist: {}", ca_path.display()),
+                        message: format!(
+                            "CA certificate file does not exist: {}",
+                            ca_path.display()
+                        ),
                     });
                 }
             }
@@ -174,7 +181,8 @@ impl ConfigValidator {
             });
         }
 
-        if network.max_message_size_mb > 1024 { // 1GB
+        if network.max_message_size_mb > 1024 {
+            // 1GB
             return Err(shardforge_core::ShardForgeError::Config {
                 message: "Maximum message size too large (max 1024 MB)".to_string(),
             });
@@ -224,7 +232,10 @@ impl ConfigValidator {
         if monitoring.enabled {
             if monitoring.bind_address.parse::<std::net::SocketAddr>().is_err() {
                 return Err(shardforge_core::ShardForgeError::Config {
-                    message: format!("Invalid monitoring bind address: {}", monitoring.bind_address),
+                    message: format!(
+                        "Invalid monitoring bind address: {}",
+                        monitoring.bind_address
+                    ),
                 });
             }
         }
@@ -246,25 +257,26 @@ impl ConfigValidator {
         }
 
         // Validate resource allocation
-        let storage_memory_mb = config.storage.block_cache_size_mb +
-                               (config.storage.write_buffer_size_mb * config.storage.max_write_buffer_number);
+        let storage_memory_mb = config.storage.block_cache_size_mb
+            + (config.storage.write_buffer_size_mb * config.storage.max_write_buffer_number);
 
         // Rough estimate: allow up to 80% of system memory
-        if let Ok(system_mem_kb) = std::fs::read_to_string("/proc/meminfo")
-            .and_then(|content| {
-                content.lines()
-                    .find(|line| line.starts_with("MemTotal:"))
-                    .and_then(|line| line.split_whitespace().nth(1))
-                    .and_then(|s| s.parse::<u64>().ok())
-                    .ok_or(std::io::ErrorKind::InvalidData)
-            }) {
+        if let Ok(system_mem_kb) = std::fs::read_to_string("/proc/meminfo").and_then(|content| {
+            content
+                .lines()
+                .find(|line| line.starts_with("MemTotal:"))
+                .and_then(|line| line.split_whitespace().nth(1))
+                .and_then(|s| s.parse::<u64>().ok())
+                .ok_or(std::io::ErrorKind::InvalidData)
+        }) {
             let system_mem_mb = system_mem_kb / 1024;
             let max_storage_memory = (system_mem_mb * 8) / 10; // 80%
 
             if storage_memory_mb > max_storage_memory as usize {
                 tracing::warn!(
                     "Storage memory usage ({}) MB exceeds 80% of system memory ({}) MB",
-                    storage_memory_mb, system_mem_mb
+                    storage_memory_mb,
+                    system_mem_mb
                 );
             }
         }
@@ -302,7 +314,10 @@ mod tests {
 
         let result = ConfigValidator::validate(&config);
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("TLS enabled but certificate path not specified"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("TLS enabled but certificate path not specified"));
     }
 
     #[test]

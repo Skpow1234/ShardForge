@@ -172,24 +172,14 @@ async fn main() {
         Commands::Init { data_dir, single_node, config } => {
             handle_init(&data_dir, single_node, &config).await
         }
-        Commands::Start { config } => {
-            handle_start(&config).await
-        }
-        Commands::Stop { timeout } => {
-            handle_stop(timeout).await
-        }
-        Commands::Status { detailed, format } => {
-            handle_status(detailed, &format).await
-        }
+        Commands::Start { config } => handle_start(&config).await,
+        Commands::Stop { timeout } => handle_stop(timeout).await,
+        Commands::Status { detailed, format } => handle_status(detailed, &format).await,
         Commands::Sql { query, database, file, interactive } => {
             handle_sql(query.as_deref(), &database, file.as_deref(), interactive).await
         }
-        Commands::Cluster { command } => {
-            handle_cluster_command(command).await
-        }
-        Commands::Config { command } => {
-            handle_config_command(command).await
-        }
+        Commands::Cluster { command } => handle_cluster_command(command).await,
+        Commands::Config { command } => handle_config_command(command).await,
     };
 
     if let Err(e) = result {
@@ -235,7 +225,12 @@ async fn handle_status(detailed: bool, format: &str) -> Result<()> {
     Ok(())
 }
 
-async fn handle_sql(query: Option<&str>, database: &str, file: Option<&str>, interactive: bool) -> Result<()> {
+async fn handle_sql(
+    query: Option<&str>,
+    database: &str,
+    file: Option<&str>,
+    interactive: bool,
+) -> Result<()> {
     println!("Executing SQL...");
     println!("Database: {}", database);
     println!("Interactive: {}", interactive);

@@ -1,7 +1,7 @@
 //! Iterator interface for range queries
 
 use async_trait::async_trait;
-use shardforge_core::{Key, Value, Result};
+use shardforge_core::{Key, Result, Value};
 
 /// Iterator for key-value pairs
 #[async_trait]
@@ -147,7 +147,9 @@ pub async fn collect_iterator(
         if let (Some(key), Some(value)) = (iter.current_key(), iter.current_value()) {
             if options.should_include(key) {
                 results.push((key.clone(), value.clone()));
-            } else if options.direction == IterationDirection::Forward && key >= options.end_key.as_ref().unwrap() {
+            } else if options.direction == IterationDirection::Forward
+                && key >= options.end_key.as_ref().unwrap()
+            {
                 break;
             }
         }
@@ -174,10 +176,7 @@ mod tests {
 
     #[test]
     fn test_iterator_options_should_include() {
-        let options = IteratorOptions::range(
-            Key::from_string("key1"),
-            Key::from_string("key5")
-        );
+        let options = IteratorOptions::range(Key::from_string("key1"), Key::from_string("key5"));
 
         assert!(!options.should_include(&Key::from_string("key0")));
         assert!(options.should_include(&Key::from_string("key1")));
@@ -189,10 +188,8 @@ mod tests {
 
     #[test]
     fn test_iterator_options_inclusive_end() {
-        let mut options = IteratorOptions::range(
-            Key::from_string("key1"),
-            Key::from_string("key5")
-        );
+        let mut options =
+            IteratorOptions::range(Key::from_string("key1"), Key::from_string("key5"));
         options.inclusive_end = true;
 
         assert!(options.should_include(&Key::from_string("key5")));

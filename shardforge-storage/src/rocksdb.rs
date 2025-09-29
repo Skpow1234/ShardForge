@@ -1,12 +1,12 @@
 //! RocksDB storage engine implementation
 
+use super::{StorageConfig, StorageEngine, StorageStats, WriteOperation};
 use async_trait::async_trait;
-use shardforge_core::{Key, Value, Result};
+use shardforge_core::{Key, Result, Value};
 use std::path::Path;
-use super::{StorageEngine, StorageConfig, StorageStats, WriteOperation};
 
 #[cfg(feature = "rocksdb")]
-use rocksdb::{DB, Options, WriteBatch, IteratorMode};
+use rocksdb::{IteratorMode, Options, WriteBatch, DB};
 
 #[cfg(feature = "rocksdb")]
 pub struct RocksDBEngine {
@@ -41,16 +41,10 @@ impl RocksDBEngine {
             }
         }
 
-        let db = DB::open(&options, data_path).map_err(|e| {
-            shardforge_core::ShardForgeError::Storage {
-                source: Box::new(e),
-            }
-        })?;
+        let db = DB::open(&options, data_path)
+            .map_err(|e| shardforge_core::ShardForgeError::Storage { source: Box::new(e) })?;
 
-        Ok(Self {
-            db,
-            stats: StorageStats::default(),
-        })
+        Ok(Self { db, stats: StorageStats::default() })
     }
 }
 
@@ -59,39 +53,33 @@ impl RocksDBEngine {
 impl StorageEngine for RocksDBEngine {
     async fn get(&self, key: &Key) -> Result<Option<Value>> {
         // Note: RocksDB operations are synchronous, but we implement the async trait
-        let result = self.db.get(key.as_slice()).map_err(|e| {
-            shardforge_core::ShardForgeError::Storage {
-                source: Box::new(e),
-            }
-        })?;
+        let result = self
+            .db
+            .get(key.as_slice())
+            .map_err(|e| shardforge_core::ShardForgeError::Storage { source: Box::new(e) })?;
 
         Ok(result.map(Value::new))
     }
 
     async fn put(&self, key: Key, value: Value) -> Result<()> {
-        self.db.put(key.as_slice(), value.as_slice()).map_err(|e| {
-            shardforge_core::ShardForgeError::Storage {
-                source: Box::new(e),
-            }
-        })?;
+        self.db
+            .put(key.as_slice(), value.as_slice())
+            .map_err(|e| shardforge_core::ShardForgeError::Storage { source: Box::new(e) })?;
         Ok(())
     }
 
     async fn delete(&self, key: &Key) -> Result<()> {
-        self.db.delete(key.as_slice()).map_err(|e| {
-            shardforge_core::ShardForgeError::Storage {
-                source: Box::new(e),
-            }
-        })?;
+        self.db
+            .delete(key.as_slice())
+            .map_err(|e| shardforge_core::ShardForgeError::Storage { source: Box::new(e) })?;
         Ok(())
     }
 
     async fn exists(&self, key: &Key) -> Result<bool> {
-        let result = self.db.get(key.as_slice()).map_err(|e| {
-            shardforge_core::ShardForgeError::Storage {
-                source: Box::new(e),
-            }
-        })?;
+        let result = self
+            .db
+            .get(key.as_slice())
+            .map_err(|e| shardforge_core::ShardForgeError::Storage { source: Box::new(e) })?;
         Ok(result.is_some())
     }
 
@@ -109,11 +97,9 @@ impl StorageEngine for RocksDBEngine {
             }
         }
 
-        self.db.write(batch).map_err(|e| {
-            shardforge_core::ShardForgeError::Storage {
-                source: Box::new(e),
-            }
-        })?;
+        self.db
+            .write(batch)
+            .map_err(|e| shardforge_core::ShardForgeError::Storage { source: Box::new(e) })?;
         Ok(())
     }
 
@@ -124,11 +110,9 @@ impl StorageEngine for RocksDBEngine {
 
     async fn flush(&self) -> Result<()> {
         // RocksDB flush is synchronous
-        self.db.flush().map_err(|e| {
-            shardforge_core::ShardForgeError::Storage {
-                source: Box::new(e),
-            }
-        })?;
+        self.db
+            .flush()
+            .map_err(|e| shardforge_core::ShardForgeError::Storage { source: Box::new(e) })?;
         Ok(())
     }
 
@@ -153,8 +137,9 @@ impl RocksDBEngine {
         Err(shardforge_core::ShardForgeError::Storage {
             source: std::io::Error::new(
                 std::io::ErrorKind::Unsupported,
-                "RocksDB storage engine not enabled (compile with --features rocksdb)"
-            ).into(),
+                "RocksDB storage engine not enabled (compile with --features rocksdb)",
+            )
+            .into(),
         })
     }
 }
