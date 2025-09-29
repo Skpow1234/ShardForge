@@ -267,7 +267,7 @@ impl ConfigValidator {
                 .find(|line| line.starts_with("MemTotal:"))
                 .and_then(|line| line.split_whitespace().nth(1))
                 .and_then(|s| s.parse::<u64>().ok())
-                .ok_or(std::io::ErrorKind::InvalidData)
+                .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::InvalidData, "Invalid /proc/meminfo format"))
         }) {
             let system_mem_mb = system_mem_kb / 1024;
             let max_storage_memory = (system_mem_mb * 8) / 10; // 80%

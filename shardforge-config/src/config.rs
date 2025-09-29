@@ -1,7 +1,6 @@
 //! Configuration structures for ShardForge
 
 use serde::{Deserialize, Serialize};
-use shardforge_core::*;
 use std::path::PathBuf;
 
 /// Main configuration structure for ShardForge

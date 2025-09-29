@@ -1,6 +1,6 @@
 //! Configuration loading and management
 
-use crate::{ConfigError, ShardForgeConfig};
+use crate::ShardForgeConfig;
 use shardforge_core::Result;
 use std::path::Path;
 
