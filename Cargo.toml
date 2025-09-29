@@ -17,22 +17,19 @@ path = "bin/shardforge.rs"
 
 [features]
 default = ["rocksdb"]
-rocksdb = ["rocksdb"]
-sled = ["sled"]
+rocksdb = ["dep:rocksdb"]
+sled = ["dep:sled"]
 
 [dependencies]
 # External dependencies
 tokio.workspace = true
 tracing.workspace = true
 serde_json.workspace = true
+clap.workspace = true
 
 # Storage engine dependencies (optional)
 rocksdb = { version = "0.22", optional = true }
 sled = { version = "0.34", optional = true }
-
-[dev-dependencies]
-# CLI dependencies (only needed for tests/examples)
-clap = { version = "4.5", features = ["derive"] }
 
 [workspace.dependencies]
 # Async runtime
@@ -76,9 +73,7 @@ comfy-table = "7.1"
 # Binary dependencies
 clap-bin = { version = "4.5", features = ["derive"] }
 
-[build-dependencies]
-# Build information
-vergen = { version = "8.0", features = ["build", "cargo", "git", "gitcl", "rustc", "si"] }
+# No build dependencies needed
 
 [dev-dependencies]
 # Testing frameworks
@@ -97,16 +92,9 @@ iai = "0.1"
 tempfile = "3.0"
 rand = "0.8"
 
-# Code quality
-clippy = "0.1"
-rustfmt = "1.7"
-
+# Code quality tools are installed separately
 # Security auditing
 cargo-audit = "0.20"
-
-[build-dependencies]
-# Build information
-vergen = { version = "8.0", features = ["build", "cargo", "git", "gitcl", "rustc", "si"] }
 
 [profile.release]
 opt-level = 3

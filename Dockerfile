@@ -13,25 +13,15 @@ WORKDIR /usr/src/shardforge
     # Copy dependency manifests
     COPY Cargo.toml ./
 
-# Create dummy main.rs to cache dependencies
-RUN mkdir src && echo "fn main() {}" > src/main.rs
-RUN mkdir -p shardforge-core/src shardforge-config/src shardforge-storage/src shardforge-cli/src
-RUN echo "pub fn dummy() {}" > shardforge-core/src/lib.rs
-RUN echo "pub fn dummy() {}" > shardforge-config/src/lib.rs
-RUN echo "pub fn dummy() {}" > shardforge-storage/src/lib.rs
-RUN echo "fn main() {}" > shardforge-cli/src/main.rs
-
-RUN cargo build --release --target x86_64-unknown-linux-gnu
-RUN rm -rf src shardforge-*/src
-
 # Copy source code
-COPY shardforge-core/src shardforge-core/src
-COPY shardforge-config/src shardforge-config/src
-COPY shardforge-storage/src shardforge-storage/src
-COPY shardforge-cli/src shardforge-cli/src
+COPY src/ src/
+COPY shardforge-core/src/ shardforge-core/src/
+COPY shardforge-config/src/ shardforge-config/src/
+COPY shardforge-storage/src/ shardforge-storage/src/
+COPY shardforge-cli/src/ shardforge-cli/src/
+COPY bin/ bin/
 
 # Build the application
-RUN touch shardforge-core/src/lib.rs shardforge-config/src/lib.rs shardforge-storage/src/lib.rs shardforge-cli/src/main.rs
 RUN cargo build --release --target x86_64-unknown-linux-gnu
 
 # Runtime stage

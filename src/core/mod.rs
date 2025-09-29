@@ -1,15 +1,51 @@
 //! Core types and utilities for ShardForge
 
-pub mod error;
-pub mod types;
-pub mod node;
-pub mod cluster;
+// Core modules (to be implemented)
+// pub mod error;
+// pub mod types;
+// pub mod node;
+// pub mod cluster;
 
-/// Re-export commonly used types
-pub use error::*;
-pub use types::*;
-pub use node::*;
-pub use cluster::*;
+// Re-export commonly used types (when modules are implemented)
+// pub use error::*;
+// pub use types::*;
+// pub use node::*;
+// pub use cluster::*;
+
+// Temporary types for CLI functionality
+use std::result::Result as StdResult;
+
+/// Result type alias for ShardForge operations
+pub type Result<T> = StdResult<T, ShardForgeError>;
+
+/// Basic error type for ShardForge
+#[derive(Debug, Clone)]
+pub enum ShardForgeError {
+    /// Internal error with message
+    Internal(String),
+    /// Configuration error
+    Config(String),
+    /// Storage error
+    Storage(String),
+    /// Network error
+    Network(String),
+    /// Consensus error
+    Consensus(String),
+}
+
+impl std::fmt::Display for ShardForgeError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ShardForgeError::Internal(msg) => write!(f, "Internal error: {}", msg),
+            ShardForgeError::Config(msg) => write!(f, "Configuration error: {}", msg),
+            ShardForgeError::Storage(msg) => write!(f, "Storage error: {}", msg),
+            ShardForgeError::Network(msg) => write!(f, "Network error: {}", msg),
+            ShardForgeError::Consensus(msg) => write!(f, "Consensus error: {}", msg),
+        }
+    }
+}
+
+impl std::error::Error for ShardForgeError {}
 
 #[cfg(test)]
 mod tests {

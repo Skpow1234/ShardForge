@@ -1,13 +1,14 @@
 //! Configuration management and validation
 
-pub mod config;
-pub mod loader;
-pub mod validator;
+// Config modules (to be implemented)
+// pub mod config;
+// pub mod loader;
+// pub mod validator;
 
-/// Re-export commonly used types
-pub use config::*;
-pub use loader::*;
-pub use validator::*;
+// Re-export commonly used types (when modules are implemented)
+// pub use config::*;
+// pub use loader::*;
+// pub use validator::*;
 
 #[cfg(test)]
 mod tests {

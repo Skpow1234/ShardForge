@@ -1,14 +1,15 @@
 //! Storage engine abstraction and implementations
 
-pub mod engine;
-pub mod iterator;
-pub mod memory;
-pub mod rocksdb;
-pub mod sled;
+// Storage modules (to be implemented)
+// pub mod engine;
+// pub mod iterator;
+// pub mod memory;
+// pub mod rocksdb;
+// pub mod sled;
 
-/// Re-export commonly used types
-pub use engine::*;
-pub use iterator::*;
+// Re-export commonly used types (when modules are implemented)
+// pub use engine::*;
+// pub use iterator::*;
 
 #[cfg(test)]
 mod tests {

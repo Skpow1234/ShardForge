@@ -25,23 +25,17 @@ pub mod core;
 /// Storage engine abstraction and implementations
 pub mod storage;
 
-/// SQL processing and query execution (planned)
-pub mod sql;
-
-/// Transaction management and concurrency control (planned)
-pub mod transaction;
-
-/// Consensus and distributed coordination (planned)
-pub mod consensus;
-
-/// Networking and RPC communication (planned)
-pub mod network;
+// Future modules (to be implemented)
+// pub mod sql;
+// pub mod transaction;
+// pub mod consensus;
+// pub mod network;
 
 /// Configuration management and validation
 pub mod config;
 
-/// Main server orchestration and lifecycle (planned)
-pub mod server;
+// Main server orchestration and lifecycle (planned)
+// pub mod server;
 
 // Re-export commonly used types for convenience
 pub use core::*;
@@ -50,13 +44,7 @@ pub use core::*;
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// Build information
-pub const BUILD_INFO: &str = concat!(
-    "rustc ", env!("VERGEN_RUSTC_SEMVER"),
-    " (", env!("VERGEN_RUSTC_COMMIT_HASH"), ")",
-    " on ", env!("VERGEN_SYSINFO_OS"),
-    " at ", env!("VERGEN_BUILD_DATE"),
-    " for ", env!("VERGEN_TARGET_TRIPLE")
-);
+pub const BUILD_INFO: &str = "Development build";
 
 #[cfg(test)]
 mod tests {

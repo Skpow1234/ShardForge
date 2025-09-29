@@ -1,6 +1,6 @@
 //! ShardForge Command Line Interface
 
-use clap::{Parser, Subcommand};
+use clap::{Parser, Subcommand, CommandFactory};
 use shardforge::core::Result;
 use std::process;
 
