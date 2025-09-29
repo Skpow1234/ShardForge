@@ -10,8 +10,8 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /usr/src/shardforge
 
-# Copy dependency manifests
-COPY Cargo.toml Cargo.lock ./
+    # Copy dependency manifests
+    COPY Cargo.toml ./
 
 # Create dummy main.rs to cache dependencies
 RUN mkdir src && echo "fn main() {}" > src/main.rs
