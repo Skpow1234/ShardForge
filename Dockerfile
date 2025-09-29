@@ -16,16 +16,16 @@ ENV PATH="/root/.cargo/bin:${PATH}"
 
 WORKDIR /usr/src/shardforge
 
-    # Copy dependency manifests
+# Copy dependency manifests
     COPY Cargo.toml ./
 
-# Copy source code
-COPY src/ src/
-COPY shardforge-core/src/ shardforge-core/src/
-COPY shardforge-config/src/ shardforge-config/src/
-COPY shardforge-storage/src/ shardforge-storage/src/
-COPY shardforge-cli/src/ shardforge-cli/src/
-COPY bin/ bin/
+# Copy all workspace members
+    COPY shardforge-core/ shardforge-core/
+    COPY shardforge-config/ shardforge-config/
+    COPY shardforge-storage/ shardforge-storage/
+    COPY shardforge-cli/ shardforge-cli/
+    COPY src/ src/
+    COPY bin/ bin/
 
 # Build the application
 RUN cargo build --release --target x86_64-unknown-linux-gnu
