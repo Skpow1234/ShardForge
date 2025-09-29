@@ -4,6 +4,138 @@
 
 ShardForge follows a layered architecture designed for high availability, horizontal scalability, and strong consistency. The system is built around the RAFT consensus protocol with intelligent sharding for distributed data management.
 
+## Project Folder Structure
+
+Based on industry best practices for database systems, ShardForge organizes its codebase into a clear, modular folder structure that separates concerns while maintaining clean dependencies:
+
+```text
+shardforge/
+├── src/                          # Main source code
+│   ├── core/                     # Core types and utilities
+│   │   ├── error.rs             # Error types and handling
+│   │   ├── types.rs             # Core data types and identifiers
+│   │   ├── node.rs              # Node management and health
+│   │   ├── cluster.rs           # Cluster topology and coordination
+│   │   └── mod.rs               # Module declarations
+│   │
+│   ├── storage/                  # Storage engine abstraction layer
+│   │   ├── engine.rs            # StorageEngine trait and factory
+│   │   ├── iterator.rs          # Iterator interface for range queries
+│   │   ├── memory.rs            # In-memory storage engine
+│   │   ├── rocksdb.rs           # RocksDB storage engine
+│   │   ├── sled.rs              # Sled storage engine
+│   │   └── mod.rs               # Module declarations
+│   │
+│   ├── sql/                     # SQL processing layer
+│   │   ├── parser.rs            # SQL parser and AST
+│   │   ├── planner.rs           # Query planning and optimization
+│   │   ├── executor.rs          # Query execution engine
+│   │   ├── catalog.rs           # Schema and metadata management
+│   │   └── mod.rs               # Module declarations
+│   │
+│   ├── transaction/             # Transaction management layer
+│   │   ├── manager.rs           # Transaction coordinator
+│   │   ├── isolation.rs         # Isolation levels and concurrency
+│   │   ├── lock.rs              # Lock management
+│   │   ├── mvcc.rs              # Multi-version concurrency control
+│   │   └── mod.rs               # Module declarations
+│   │
+│   ├── consensus/               # Consensus and coordination layer
+│   │   ├── raft.rs              # RAFT consensus implementation
+│   │   ├── membership.rs        # Cluster membership management
+│   │   ├── log.rs               # Log replication and persistence
+│   │   ├── election.rs          # Leader election logic
+│   │   └── mod.rs               # Module declarations
+│   │
+│   ├── network/                 # Networking and communication layer
+│   │   ├── server.rs            # RPC server implementation
+│   │   ├── client.rs            # RPC client for cluster communication
+│   │   ├── protocol.rs          # Wire protocol definitions
+│   │   ├── connection.rs        # Connection pooling and management
+│   │   └── mod.rs               # Module declarations
+│   │
+│   ├── config/                  # Configuration management layer
+│   │   ├── config.rs            # Configuration structures
+│   │   ├── loader.rs            # Configuration loading logic
+│   │   ├── validator.rs         # Configuration validation
+│   │   └── mod.rs               # Module declarations
+│   │
+│   ├── server/                  # Main server orchestration
+│   │   ├── node.rs              # Database node implementation
+│   │   ├── coordinator.rs       # Request coordination
+│   │   ├── lifecycle.rs         # Server lifecycle management
+│   │   └── mod.rs               # Module declarations
+│   │
+│   └── lib.rs                   # Main library entry point
+│
+├── bin/                          # Binary executables
+│   └── shardforge.rs            # Main CLI binary
+│
+├── tests/                        # Integration tests
+│   ├── storage/                 # Storage engine tests
+│   ├── sql/                     # SQL processing tests
+│   ├── transaction/             # Transaction tests
+│   ├── consensus/               # Consensus tests
+│   ├── network/                 # Network tests
+│   └── integration.rs           # Full system integration tests
+│
+├── examples/                     # Example applications
+│   ├── basic_usage.rs           # Basic database usage
+│   ├── cluster_setup.rs         # Multi-node cluster setup
+│   ├── custom_storage.rs        # Custom storage engine
+│   └── benchmark.rs             # Performance benchmarking
+│
+├── benches/                      # Performance benchmarks
+│   ├── storage.rs               # Storage engine benchmarks
+│   ├── sql.rs                   # SQL processing benchmarks
+│   ├── transaction.rs           # Transaction benchmarks
+│   └── consensus.rs             # Consensus benchmarks
+│
+├── docs/                         # Documentation
+│   ├── architecture.md          # System architecture
+│   ├── deployment.md            # Deployment guide
+│   ├── security.md              # Security guide
+│   ├── testing.md               # Testing strategy
+│   ├── roadmap.md               # Development roadmap
+│   └── api/                     # API documentation
+│
+├── docker/                       # Docker-related files
+│   ├── Dockerfile               # Main Dockerfile
+│   ├── docker-compose.yml       # Development environment
+│   ├── Dockerfile.test          # Test environment
+│   └── scripts/                 # Docker build scripts
+│
+├── scripts/                      # Build and utility scripts
+│   ├── build.sh                 # Build script
+│   ├── test.sh                  # Test runner
+│   ├── benchmark.sh             # Benchmark runner
+│   ├── ci/                      # CI/CD scripts
+│   └── dev/                     # Development utilities
+│
+├── config/                       # Configuration templates
+│   ├── default.toml             # Default configuration
+│   ├── development.toml         # Development settings
+│   ├── production.toml          # Production settings
+│   └── examples/                # Configuration examples
+│
+├── tools/                        # Development tools
+│   ├── codegen/                 # Code generation tools
+│   ├── lint/                    # Linting and formatting
+│   ├── perf/                    # Performance analysis
+│   └── migration/               # Schema migration tools
+│
+├── Cargo.toml                    # Workspace configuration
+├── Cargo.lock                    # Dependency lock file
+├── README.md                     # Project documentation
+├── LICENSE                       # License file
+├── .gitignore                   # Git ignore rules
+├── rustfmt.toml                 # Code formatting configuration
+├── clippy.toml                  # Linting configuration
+└── .github/                      # GitHub configuration
+    ├── workflows/               # CI/CD workflows
+    └── ISSUE_TEMPLATE/          # Issue templates
+```
+
 ```text
 ┌─────────────────────────────────────────────────────────────────────────────────┐
 │                             ShardForge Cluster                                  │

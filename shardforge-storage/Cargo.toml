@@ -1,0 +1,28 @@
+[package]
+name = "shardforge-storage"
+version = "0.1.0"
+edition = "2021"
+description = "Storage engine abstraction for ShardForge distributed database"
+authors = ["ShardForge Team"]
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+# Workspace dependencies
+serde.workspace = true
+thiserror.workspace = true
+async-trait.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+
+# Local dependencies
+shardforge-core = { path = "../shardforge-core" }
+shardforge-config = { path = "../shardforge-config" }
+
+# Storage engines
+rocksdb = { version = "0.22", optional = true }
+sled = { version = "0.34", optional = true }
+
+[features]
+default = ["rocksdb"]
+rocksdb = ["dep:rocksdb"]
+sled = ["dep:sled"]

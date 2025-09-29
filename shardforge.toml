@@ -1,0 +1,44 @@
+# ShardForge Configuration File
+# This is the default configuration for ShardForge
+
+[cluster]
+name = "default-cluster"
+# node_id will be auto-generated if not specified
+data_directory = "./data"
+
+[node]
+name = "shardforge-node"
+bind_address = "127.0.0.1:5432"
+# advertised_address = "127.0.0.1:5432"  # Use if behind NAT/firewall
+max_connections = 1000
+connection_timeout_sec = 30
+
+[storage]
+engine = "memory"  # Options: rocksdb, sled, memory
+block_cache_size_mb = 256
+write_buffer_size_mb = 64
+max_write_buffer_number = 4
+compression = "lz4"  # Options: none, snappy, lz4, zstd
+enable_statistics = true
+
+[network]
+tls_enabled = false
+# certificate_path = "/path/to/cert.pem"
+# private_key_path = "/path/to/key.pem"
+# ca_certificate_path = "/path/to/ca.pem"
+max_message_size_mb = 4
+connection_pool_size = 10
+keep_alive_interval_sec = 60
+
+[logging]
+level = "info"  # Options: trace, debug, info, warn, error
+format = "pretty"  # Options: json, pretty
+# file_path = "/var/log/shardforge.log"
+max_file_size_mb = 100
+max_files = 5
+
+[monitoring]
+enabled = true
+bind_address = "127.0.0.1:9090"
+tracing_enabled = false
+service_name = "shardforge"

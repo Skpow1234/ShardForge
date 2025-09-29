@@ -1,0 +1,29 @@
+[package]
+name = "shardforge-cli"
+version = "0.1.0"
+edition = "2021"
+description = "Command-line interface for ShardForge distributed database"
+authors = ["ShardForge Team"]
+license = "MIT OR Apache-2.0"
+
+[[bin]]
+name = "shardforge"
+path = "src/main.rs"
+
+[dependencies]
+# Workspace dependencies
+tokio.workspace = true
+tracing.workspace = true
+clap.workspace = true
+serde_json.workspace = true
+
+# Local dependencies
+shardforge-core = { path = "../shardforge-core" }
+shardforge-config = { path = "../shardforge-config" }
+shardforge-storage = { path = "../shardforge-storage" }
+
+# Additional CLI dependencies
+dialoguer.workspace = true
+console.workspace = true
+indicatif.workspace = true
+comfy-table.workspace = true

@@ -1,0 +1,38 @@
+version: '3.8'
+services:
+  shardforge:
+    build: .
+    ports:
+      - "5432:5432"
+      - "9090:9090"
+    volumes:
+      - ./data:/data/shardforge
+      - ./shardforge.toml:/etc/shardforge/config.toml
+    environment:
+      - RUST_LOG=info
+    networks:
+      - shardforge-net
+    restart: unless-stopped
+
+  # For future multi-node setup
+  # shardforge-node2:
+  #   build: .
+  #   ports:
+  #     - "5433:5432"
+  #     - "9091:9090"
+  #   volumes:
+  #     - ./data/node2:/data/shardforge
+  #   environment:
+  #     - RUST_LOG=info
+  #     - SHARDFORGE_NODE_ID=node-2
+  #   networks:
+  #     - shardforge-net
+  #   depends_on:
+  #     - shardforge
+
+networks:
+  shardforge-net:
+    driver: bridge
+
+volumes:
+  shardforge-data:
