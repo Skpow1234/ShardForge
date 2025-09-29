@@ -2,7 +2,6 @@
 name = "shardforge-config"
 version = "0.1.0"
 edition = "2021"
-rust-version = "1.70"
 description = "Configuration management for ShardForge distributed database"
 authors = ["ShardForge Team"]
 license = "MIT OR Apache-2.0"
@@ -22,3 +21,6 @@ tracing.workspace = true
 
 # Local dependencies
 shardforge-core = { path = "../shardforge-core" }
+
+[dev-dependencies]
+tempfile = "3.0"
