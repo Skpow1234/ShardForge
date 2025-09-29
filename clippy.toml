@@ -1,0 +1,23 @@
+# Clippy linting configuration
+# https://doc.rust-lang.org/clippy/
+
+# Allow some pedantic lints that are too strict
+allow = []
+
+# Deny these lints
+disallowed-methods = []
+
+# Configure specific lints
+too-many-arguments-threshold = 8
+type-complexity-threshold = 250
+cognitive-complexity-threshold = 25
+
+# Performance-related settings
+large-error-threshold = 128
+trivial-copy-size-limit = 64
+
+# Documentation settings
+check-private-items = true
+
+# Cargo-specific settings
+cargo = { avoid-dev-deps = true }

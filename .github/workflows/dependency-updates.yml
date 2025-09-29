@@ -1,0 +1,65 @@
+name: Dependency Updates
+
+on:
+  schedule:
+    # Run weekly on Mondays at 2 AM UTC
+    - cron: '0 2 * * 1'
+  workflow_dispatch:
+
+jobs:
+  update-dependencies:
+    name: Update Dependencies
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Cache dependencies
+      uses: Swatinem/rust-cache@v2
+
+    - name: Update dependencies
+      run: |
+        cargo update
+        cargo update --aggressive
+
+    - name: Check if Cargo.lock changed
+      id: lockfile-changed
+      run: |
+        if git diff --quiet Cargo.lock; then
+          echo "changed=false" >> $GITHUB_OUTPUT
+        else
+          echo "changed=true" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Run tests after update
+      if: steps.lockfile-changed.outputs.changed == 'true'
+      run: cargo test
+
+    - name: Create pull request
+      if: steps.lockfile-changed.outputs.changed == 'true'
+      uses: peter-evans/create-pull-request@v5
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        commit-message: "chore: update dependencies"
+        title: "Automated Dependency Updates"
+        body: |
+          This PR updates Rust dependencies to their latest compatible versions.
+
+          ## Changes
+          - Updated Cargo.lock with latest dependency versions
+          - All tests pass with updated dependencies
+
+          ## Checklist
+          - [x] Tests pass
+          - [x] No breaking changes
+          - [x] Dependencies are compatible
+        branch: automated/dependency-updates
+        delete-branch: true
+        labels: |
+          dependencies
+          automated

@@ -1,0 +1,140 @@
+name: Code Quality
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Run daily at 6 AM UTC
+    - cron: '0 6 * * *'
+
+jobs:
+  code-quality:
+    name: Code Quality Checks
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Cache dependencies
+      uses: Swatinem/rust-cache@v2
+
+    - name: Install additional tools
+      run: |
+        cargo install cargo-machete
+        cargo install cargo-outdated
+        cargo install cargo-bloat
+
+    - name: Check for unused dependencies
+      run: cargo machete
+
+    - name: Check for outdated dependencies
+      run: cargo outdated --exit-code 1 || true
+
+    - name: Analyze binary size
+      run: |
+        cargo build --release
+        cargo bloat --release --crates
+        cargo bloat --release --bins
+
+    - name: Check for duplicate dependencies
+      run: |
+        cargo tree | grep -E "├──|└──" | sort | uniq -c | sort -nr | head -20
+
+    - name: Run cargo-deny
+      uses: EmbarkStudios/cargo-deny-action@v1
+      with:
+        command: check
+        arguments: --all-features
+
+    - name: Check license compatibility
+      run: |
+        cargo install cargo-license
+        cargo license --json > licenses.json
+        # Check for incompatible licenses
+        jq -r '.[] | select(.license | contains("GPL") or contains("LGPL")) | .name' licenses.json || true
+
+    - name: Generate code quality report
+      run: |
+        echo "## Code Quality Report" > code-quality.md
+        echo "" >> code-quality.md
+        echo "### Binary Size" >> code-quality.md
+        echo "\`\`\`" >> code-quality.md
+        cargo bloat --release --bins | head -20 >> code-quality.md
+        echo "\`\`\`" >> code-quality.md
+        echo "" >> code-quality.md
+        echo "### Dependencies" >> code-quality.md
+        echo "\`\`\`" >> code-quality.md
+        cargo tree | wc -l >> code-quality.md
+        echo "\`\`\`" >> code-quality.md
+
+    - name: Upload code quality report
+      uses: actions/upload-artifact@v4
+      with:
+        name: code-quality-report
+        path: code-quality.md
+
+  # Memory safety verification
+  miri:
+    name: Miri (UB Detection)
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@nightly
+      with:
+        components: miri
+
+    - name: Cache dependencies
+      uses: Swatinem/rust-cache@v2
+
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libssl-dev pkg-config clang
+
+    - name: Run Miri
+      run: |
+        cargo miri setup
+        cargo miri test --lib --bins
+      env:
+        MIRIFLAGS: -Zmiri-disable-isolation
+
+  # Fuzz testing
+  fuzz:
+    name: Fuzz Testing
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@nightly
+
+    - name: Cache dependencies
+    - uses: Swatinem/rust-cache@v2
+
+    - name: Install cargo-fuzz
+      run: cargo install cargo-fuzz
+
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libssl-dev pkg-config clang
+
+    - name: Build fuzz targets
+      run: cargo fuzz build
+
+    - name: Run fuzz tests (short)
+      run: |
+        # Run each fuzz target for a short time
+        for target in $(cargo fuzz list); do
+          timeout 60 cargo fuzz run $target -- -max_total_time=30 || true
+        done

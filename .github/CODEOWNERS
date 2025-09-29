@@ -1,0 +1,31 @@
+# Code ownership and review requirements
+
+# Global owners (required for all changes)
+* @Skpow1234
+
+# Core database components 
+/src/core/ @Skpow1234
+/src/storage/ @Skpow1234
+/src/transaction/ @Skpow1234
+
+# SQL and query processing
+/src/sql/ @Skpow1234
+/docs/ @Skpow1234
+
+# Infrastructure and CI/CD
+/.github/ @Skpow1234
+/docker/ @Skpow1234
+/scripts/ @Skpow1234
+
+# CLI and user-facing components
+/bin/ @Skpow1234
+/src/config/ @Skpow1234
+
+# Tests
+/tests/ @Skpow1234
+/benches/ @Skpow1234
+
+# Documentation
+/docs/ @Skpow1234
+README.md @Skpow1234
+CONTRIBUTING.md @Skpow1234

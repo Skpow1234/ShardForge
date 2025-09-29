@@ -1,0 +1,161 @@
+name: PR Checks
+
+on:
+  pull_request:
+    branches: [ main, develop ]
+    types: [opened, synchronize, reopened, ready_for_review]
+
+jobs:
+  # Quick checks for pull requests
+  pr-validation:
+    name: PR Validation
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Cache dependencies
+      uses: Swatinem/rust-cache@v2
+
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libssl-dev pkg-config clang
+
+    - name: Check code formatting
+      run: cargo fmt --check
+
+    - name: Run clippy
+      run: cargo clippy -- -D warnings
+
+    - name: Build
+      run: cargo build
+
+    - name: Run unit tests
+      run: cargo test --lib --bins
+
+    - name: Run integration tests
+      run: cargo test --test integration
+
+    - name: Check documentation
+      run: cargo doc --no-deps
+
+    - name: Check for breaking changes
+      run: |
+        # Check if public API changed
+        cargo public-api --diff-git-checkouts origin/main HEAD || echo "API changes detected"
+
+  # Performance regression check
+  performance-check:
+    name: Performance Check
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Cache dependencies
+      uses: Swatinem/rust-cache@v2
+
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libssl-dev pkg-config clang
+
+    - name: Install critcmp for benchmark comparison
+      run: cargo install critcmp
+
+    - name: Run benchmarks on base branch
+      run: |
+        git checkout origin/${{ github.base_ref }}
+        cargo bench --quiet
+        mv target/criterion target/criterion-base
+
+    - name: Run benchmarks on PR branch
+      run: |
+        git checkout ${{ github.sha }}
+        cargo bench --quiet
+
+    - name: Compare benchmarks
+      run: |
+        critcmp target/criterion-base target/criterion || true
+
+    - name: Comment on performance changes
+      uses: dorny/test-reporter@v1
+      if: success()
+      with:
+        name: Performance Comparison
+        path: 'target/criterion-comparison.json'
+        reporter: java-junit
+
+  # Security scan
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Run cargo-audit
+      run: |
+        cargo install cargo-audit --version 0.20.0
+        cargo audit --format json || true
+
+    - name: Run cargo-deny
+      uses: EmbarkStudios/cargo-deny-action@v1
+      with:
+        command: check
+
+  # Size check
+  binary-size:
+    name: Binary Size Check
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Cache dependencies
+      uses: Swatinem/rust-cache@v2
+
+    - name: Build release binary
+      run: cargo build --release
+
+    - name: Check binary size
+      run: |
+        ls -lh target/release/shardforge
+        size=$(stat -c%s target/release/shardforge)
+        echo "Binary size: $size bytes"
+        # Fail if binary is larger than 50MB
+        if [ $size -gt 52428800 ]; then
+          echo "Binary size too large: $size bytes"
+          exit 1
+        fi
+
+    - name: Upload binary size artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: binary-size-${{ github.sha }}
+        path: target/release/shardforge

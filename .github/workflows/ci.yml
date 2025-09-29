@@ -1,0 +1,311 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  # Test suite across multiple platforms and Rust versions
+  test:
+    name: Test Suite
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            rust: stable
+            target: x86_64-unknown-linux-gnu
+          - os: ubuntu-latest
+            rust: beta
+            target: x86_64-unknown-linux-gnu
+          - os: ubuntu-latest
+            rust: nightly
+            target: x86_64-unknown-linux-gnu
+          - os: windows-latest
+            rust: stable
+            target: x86_64-pc-windows-msvc
+          - os: macos-latest
+            rust: stable
+            target: x86_64-apple-darwin
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: ${{ matrix.rust }}
+        targets: ${{ matrix.target }}
+
+    - name: Cache dependencies
+      uses: Swatinem/rust-cache@v2
+      with:
+        key: ${{ matrix.os }}-${{ matrix.rust }}-${{ matrix.target }}
+
+    - name: Install system dependencies (Linux)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libssl-dev pkg-config clang
+
+    - name: Check code formatting
+      run: cargo fmt --check
+
+    - name: Run clippy
+      run: cargo clippy -- -D warnings
+
+    - name: Build (debug)
+      run: cargo build --target ${{ matrix.target }}
+
+    - name: Build (release)
+      run: cargo build --release --target ${{ matrix.target }}
+
+    - name: Run unit tests
+      run: cargo test --lib --bins --target ${{ matrix.target }} --verbose
+
+    - name: Run integration tests
+      run: cargo test --test integration --target ${{ matrix.target }} --verbose
+
+    - name: Run storage integration tests
+      run: cargo test --test storage_integration --target ${{ matrix.target }} --verbose
+
+    - name: Run config integration tests
+      run: cargo test --test config_integration --target ${{ matrix.target }} --verbose
+
+    - name: Test different feature combinations
+      run: |
+        cargo test --no-default-features
+        cargo test --features rocksdb
+        cargo test --features sled
+        cargo test --all-features
+
+  # Performance regression testing
+  performance:
+    name: Performance Tests
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Cache dependencies
+      uses: Swatinem/rust-cache@v2
+
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libssl-dev pkg-config clang
+
+    - name: Run performance benchmarks
+      run: cargo bench --quiet
+
+    - name: Upload benchmark results
+      uses: actions/upload-artifact@v4
+      with:
+        name: benchmark-results-${{ github.sha }}
+        path: target/criterion/
+
+  # Security and dependency auditing
+  security:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Cache dependencies
+      uses: Swatinem/rust-cache@v2
+
+    - name: Audit dependencies
+      run: |
+        cargo install cargo-audit --version 0.20.0
+        cargo audit
+
+    - name: Check for unused dependencies
+      run: |
+        cargo install cargo-udeps --version 0.1.35
+        cargo +nightly udeps --all-targets
+
+    - name: Check minimum supported Rust version
+      run: |
+        cargo install cargo-msrv --version 0.15.1
+        cargo msrv --output-format json | jq .
+
+  # Code coverage reporting
+  coverage:
+    name: Code Coverage
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Cache dependencies
+      uses: Swatinem/rust-cache@v2
+
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libssl-dev pkg-config clang
+
+    - name: Install cargo-tarpaulin
+      run: cargo install cargo-tarpaulin
+
+    - name: Run coverage
+      run: cargo tarpaulin --out Xml --output-dir coverage --exclude-files "*/tests/*" --exclude-files "*/benches/*"
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: coverage/cobertura.xml
+        flags: rust
+        name: codecov-umbrella
+
+    - name: Upload coverage artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-report-${{ github.sha }}
+        path: coverage/
+
+  # Docker build and test
+  docker:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        push: false
+        tags: shardforge:test
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: Test Docker image
+      run: |
+        docker run --rm shardforge:test --help
+
+    - name: Test Docker health check
+      run: |
+        docker run -d --name shardforge-test shardforge:test
+        sleep 10
+        docker inspect shardforge-test | jq -r '.[0].State.Health.Status' | grep -q "healthy"
+        docker stop shardforge-test
+
+  # Documentation and examples
+  docs:
+    name: Documentation
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Cache dependencies
+      uses: Swatinem/rust-cache@v2
+
+    - name: Build documentation
+      run: cargo doc --no-deps --document-private-items
+
+    - name: Check documentation
+      run: |
+        cargo doc --no-deps
+        # Check that all public APIs have documentation
+        cargo doc --no-deps 2>&1 | grep -q "warning" && exit 1 || true
+
+    - name: Upload documentation
+      uses: actions/upload-artifact@v4
+      if: github.ref == 'refs/heads/main'
+      with:
+        name: docs-${{ github.sha }}
+        path: target/doc/
+
+  # Release preparation
+  release:
+    name: Release Preparation
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Cache dependencies
+      uses: Swatinem/rust-cache@v2
+
+    - name: Build release binary
+      run: cargo build --release
+
+    - name: Run release tests
+      run: cargo test --release
+
+    - name: Create release archive
+      run: |
+        tar -czf shardforge-${{ github.sha }}.tar.gz -C target/release shardforge
+        ls -la shardforge-*.tar.gz
+
+    - name: Upload release artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: release-${{ github.sha }}
+        path: shardforge-*.tar.gz
+
+  # Final status check
+  ci-success:
+    name: CI Success
+    runs-on: ubuntu-latest
+    needs: [test, performance, security, coverage, docker, docs]
+    if: always()
+    steps:
+    - name: Check all jobs
+      run: |
+        if [[ "${{ needs.test.result }}" != "success" ]]; then
+          echo "❌ Test suite failed"
+          exit 1
+        fi
+        if [[ "${{ needs.performance.result }}" != "success" ]]; then
+          echo "❌ Performance tests failed"
+          exit 1
+        fi
+        if [[ "${{ needs.security.result }}" != "success" ]]; then
+          echo "❌ Security audit failed"
+          exit 1
+        fi
+        if [[ "${{ needs.coverage.result }}" != "success" ]]; then
+          echo "❌ Coverage analysis failed"
+          exit 1
+        fi
+        if [[ "${{ needs.docker.result }}" != "success" ]]; then
+          echo "❌ Docker build failed"
+          exit 1
+        fi
+        if [[ "${{ needs.docs.result }}" != "success" ]]; then
+          echo "❌ Documentation build failed"
+          exit 1
+        fi
+        echo "✅ All CI checks passed!"

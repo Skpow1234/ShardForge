@@ -1,25 +1,38 @@
-[workspace]
-members = [
-    "shardforge-core",
-    "shardforge-storage",
-    "shardforge-sql",
-    "shardforge-raft",
-    "shardforge-network",
-    "shardforge-cli",
-    "shardforge-config",
-]
+[package]
+name = "shardforge"
+version = "0.1.0"
+edition = "2021"
+description = "ShardForge Distributed Database System"
+authors = ["ShardForge Team"]
+license = "MIT OR Apache-2.0"
+homepage = "https://github.com/shardforge/shardforge"
+repository = "https://github.com/shardforge/shardforge"
+readme = "README.md"
+keywords = ["database", "distributed", "rust", "postgresql", "raft"]
+categories = ["database", "concurrency", "data-structures"]
 
-[profile.release]
-opt-level = 3
-lto = true
-codegen-units = 1
-panic = "abort"
-strip = true
+[[bin]]
+name = "shardforge"
+path = "bin/shardforge.rs"
 
-[profile.dev]
-opt-level = 0
-debug = true
-overflow-checks = true
+[features]
+default = ["rocksdb"]
+rocksdb = ["rocksdb"]
+sled = ["sled"]
+
+[dependencies]
+# External dependencies
+tokio.workspace = true
+tracing.workspace = true
+serde_json.workspace = true
+
+# Storage engine dependencies (optional)
+rocksdb = { version = "0.22", optional = true }
+sled = { version = "0.34", optional = true }
+
+[dev-dependencies]
+# CLI dependencies (only needed for tests/examples)
+clap = { version = "4.5", features = ["derive"] }
 
 [workspace.dependencies]
 # Async runtime
@@ -52,3 +65,60 @@ async-trait = "0.1"
 uuid = { version = "1.8", features = ["v4", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
 regex = "1.10"
+
+# CLI and user interaction
+clap = { version = "4.5", features = ["derive", "color", "suggestions"] }
+dialoguer = "0.11"
+console = "0.15"
+indicatif = "0.17"
+comfy-table = "7.1"
+
+[build-dependencies]
+# Build information
+vergen = { version = "8.0", features = ["build", "cargo", "git", "gitcl", "rustc", "si"] }
+
+[dev-dependencies]
+# Testing frameworks
+tokio-test = "0.4"
+test-log = "0.2"
+proptest = "1.5"
+mockall = "0.13"
+fake = "2.9"
+rstest = "0.23"
+
+# Benchmarking
+criterion = { version = "0.5", features = ["html_reports"] }
+iai = "0.1"
+
+# Test utilities
+tempfile = "3.0"
+rand = "0.8"
+
+# Code quality
+clippy = "0.1"
+rustfmt = "1.7"
+
+# Security auditing
+cargo-audit = "0.20"
+
+[build-dependencies]
+# Build information
+vergen = { version = "8.0", features = ["build", "cargo", "git", "gitcl", "rustc", "si"] }
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
+
+[profile.dev]
+opt-level = 0
+debug = true
+overflow-checks = true
+
+[profile.bench]
+opt-level = 3
+lto = true
+codegen-units = 1
+debug = false
