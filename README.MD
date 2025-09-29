@@ -33,7 +33,6 @@ shardforge start --config shardforge.toml
 - **[Deployment](docs/deployment.md)** - Installation, configuration, and monitoring
 - **[Development Roadmap](docs/roadmap.md)** - Phased development plan (24 months)
 - **[Testing Strategy](docs/testing.md)** - Unit testing, integration testing, and chaos engineering
-- **[Competitive Analysis](docs/competitive-analysis.md)** - Comparison with existing solutions
 - **[Risk Assessment](docs/risk-assessment.md)** - Technical and market risk analysis
 - **[Success Metrics](docs/success-metrics.md)** - Goals and key performance indicators
 - **[Conclusion](docs/conclusion.md)** - Final thoughts and project outlook
