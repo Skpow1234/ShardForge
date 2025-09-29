@@ -28,10 +28,10 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y libssl-dev pkg-config clang jq curl
 
-    - name: Run comprehensive test suite
+    - name: Run comprehensive test suite (workspace)
       run: |
-        cargo test --all-features --release
-        cargo bench --quiet
+        cargo test --workspace --all-features --release
+        cargo bench --workspace --quiet
 
     - name: Check documentation coverage
       run: |

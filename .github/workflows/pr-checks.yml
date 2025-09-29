@@ -38,8 +38,8 @@ jobs:
     - name: Build
       run: cargo build
 
-    - name: Run unit tests
-      run: cargo test --lib --bins
+    - name: Run all tests (workspace)
+      run: cargo test --workspace
 
     - name: Run integration tests
       run: cargo test --test integration
@@ -87,7 +87,7 @@ jobs:
     - name: Run benchmarks on PR branch
       run: |
         git checkout ${{ github.sha }}
-        cargo bench --quiet
+        cargo bench --workspace --quiet
 
     - name: Compare benchmarks
       run: |

@@ -68,8 +68,8 @@ jobs:
     - name: Build (release)
       run: cargo build --release --target ${{ matrix.target }}
 
-    - name: Run unit tests
-      run: cargo test --lib --bins --target ${{ matrix.target }} --verbose
+    - name: Run all tests (workspace)
+      run: cargo test --workspace --target ${{ matrix.target }} --verbose
 
     - name: Run integration tests
       run: cargo test --test integration --target ${{ matrix.target }} --verbose
@@ -106,8 +106,8 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y libssl-dev pkg-config clang
 
-    - name: Run performance benchmarks
-      run: cargo bench --quiet
+    - name: Run performance benchmarks (workspace)
+      run: cargo bench --workspace --quiet
 
     - name: Upload benchmark results
       uses: actions/upload-artifact@v4
@@ -166,8 +166,8 @@ jobs:
     - name: Install cargo-tarpaulin
       run: cargo install cargo-tarpaulin
 
-    - name: Run coverage
-      run: cargo tarpaulin --out Xml --output-dir coverage --exclude-files "*/tests/*" --exclude-files "*/benches/*"
+    - name: Run coverage (workspace)
+      run: cargo tarpaulin --workspace --out Xml --output-dir coverage --exclude-files "*/tests/*" --exclude-files "*/benches/*"
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v3
@@ -261,8 +261,8 @@ jobs:
     - name: Build release binary
       run: cargo build --release
 
-    - name: Run release tests
-      run: cargo test --release
+    - name: Run release tests (workspace)
+      run: cargo test --workspace --release
 
     - name: Create release archive
       run: |

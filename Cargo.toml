@@ -1,3 +1,11 @@
+[workspace]
+members = [
+    "shardforge-core",
+    "shardforge-config",
+    "shardforge-storage",
+    "shardforge-cli",
+]
+
 [package]
 name = "shardforge"
 version = "0.1.0"
