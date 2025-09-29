@@ -14,7 +14,7 @@ impl ClusterId {
         Self(Uuid::new_v4())
     }
 
-    pub fn from_string(s: &str) -> Result<Self, uuid::Error> {
+    pub fn from_string(s: &str) -> Result<Self> {
         Ok(Self(Uuid::parse_str(s)?))
     }
 
@@ -171,14 +171,9 @@ pub enum MembershipEvent {
         node_info: NodeInfo,
     },
     /// Node left the cluster
-    NodeLeft {
-        node_id: NodeId,
-    },
+    NodeLeft { node_id: NodeId },
     /// Node failed and was removed
-    NodeFailed {
-        node_id: NodeId,
-        reason: String,
-    },
+    NodeFailed { node_id: NodeId, reason: String },
     /// Leadership changed
     LeadershipChanged {
         old_leader: Option<NodeId>,
@@ -244,21 +239,19 @@ impl ClusterInfo {
 
     pub fn add_node(&mut self, node_info: NodeInfo) -> Result<()> {
         if self.members.contains_key(&node_info.id) {
-            return Err(crate::ShardForgeError::internal(
-                format!("Node {} already exists in cluster", node_info.id)
-            ));
+            return Err(crate::ShardForgeError::internal(format!(
+                "Node {} already exists in cluster",
+                node_info.id
+            )));
         }
         self.members.insert(node_info.id, node_info);
         Ok(())
     }
 
     pub fn remove_node(&mut self, node_id: &NodeId) -> Result<NodeInfo> {
-        self.members.remove(node_id)
-            .ok_or_else(|| {
-                crate::ShardForgeError::internal(
-                    format!("Node {} not found in cluster", node_id)
-                )
-            })
+        self.members.remove(node_id).ok_or_else(|| {
+            crate::ShardForgeError::internal(format!("Node {} not found in cluster", node_id))
+        })
     }
 
     pub fn get_node(&self, node_id: &NodeId) -> Option<&NodeInfo> {
@@ -266,14 +259,11 @@ impl ClusterInfo {
     }
 
     pub fn get_nodes_by_role(&self, role: crate::NodeRole) -> Vec<&NodeInfo> {
-        self.members.values()
-            .filter(|node| node.role == role)
-            .collect()
+        self.members.values().filter(|node| node.role == role).collect()
     }
 
     pub fn get_leader(&self) -> Option<&NodeInfo> {
-        self.members.values()
-            .find(|node| node.is_leader())
+        self.members.values().find(|node| node.is_leader())
     }
 
     pub fn node_count(&self) -> usize {

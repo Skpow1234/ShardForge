@@ -1,6 +1,6 @@
 //! Node-related types and interfaces
 
-use crate::{NodeId, Result};
+use crate::NodeId;
 use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
 

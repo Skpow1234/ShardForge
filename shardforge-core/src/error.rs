@@ -1,6 +1,5 @@
 //! Core error types for ShardForge
 
-use std::fmt;
 use thiserror::Error;
 
 /// Core error type for ShardForge operations
@@ -10,13 +9,19 @@ pub enum ShardForgeError {
     Config { message: String },
 
     #[error("Storage error: {source}")]
-    Storage { source: Box<dyn std::error::Error + Send + Sync> },
+    Storage {
+        source: Box<dyn std::error::Error + Send + Sync>,
+    },
 
     #[error("Network error: {source}")]
-    Network { source: Box<dyn std::error::Error + Send + Sync> },
+    Network {
+        source: Box<dyn std::error::Error + Send + Sync>,
+    },
 
     #[error("Consensus error: {source}")]
-    Consensus { source: Box<dyn std::error::Error + Send + Sync> },
+    Consensus {
+        source: Box<dyn std::error::Error + Send + Sync>,
+    },
 
     #[error("Query error: {message}")]
     Query { message: String },
@@ -67,3 +72,9 @@ impl ShardForgeError {
 
 /// Result type alias for ShardForge operations
 pub type Result<T> = std::result::Result<T, ShardForgeError>;
+
+impl From<uuid::Error> for ShardForgeError {
+    fn from(error: uuid::Error) -> Self {
+        ShardForgeError::internal(format!("UUID parsing error: {}", error))
+    }
+}

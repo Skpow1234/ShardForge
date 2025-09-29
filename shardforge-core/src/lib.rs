@@ -1,12 +1,12 @@
 //! Core types and interfaces for ShardForge distributed database
 
-pub mod error;
-pub mod types;
-pub mod node;
 pub mod cluster;
+pub mod error;
+pub mod node;
+pub mod types;
 
-/// Re-export commonly used types
-pub use types::*;
+pub use cluster::*;
 pub use error::*;
 pub use node::*;
-pub use cluster::*;
+/// Re-export commonly used types
+pub use types::*;

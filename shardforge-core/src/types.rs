@@ -245,9 +245,7 @@ impl Timestamp {
 
     pub fn now() -> Self {
         use std::time::{SystemTime, UNIX_EPOCH};
-        let duration = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .expect("Time went backwards");
+        let duration = SystemTime::now().duration_since(UNIX_EPOCH).expect("Time went backwards");
         Self(duration.as_micros() as u64)
     }
 
