@@ -6,7 +6,7 @@ use shardforge_core::{Key, Result, Value};
 use std::path::Path;
 
 #[cfg(feature = "rocksdb")]
-use rocksdb::{IteratorMode, Options, WriteBatch, DB};
+use rocksdb::{BlockBasedOptions, Cache, Options, WriteBatch, DB};
 
 #[cfg(feature = "rocksdb")]
 pub struct RocksDBEngine {
@@ -23,12 +23,17 @@ impl RocksDBEngine {
         options.create_if_missing(true);
         options.set_max_write_buffer_number(config.max_write_buffer_number as i32);
         options.set_write_buffer_size(config.write_buffer_size_mb * 1024 * 1024);
-        options.set_block_cache_size_mb(config.block_cache_size_mb);
+
+        // Configure block cache
+        let cache_size = config.block_cache_size_mb * 1024 * 1024;
+        let mut block_options = rocksdb::BlockBasedOptions::default();
+        block_options.set_block_cache(&rocksdb::Cache::new_lru_cache(cache_size));
+        options.set_block_based_table_factory(&block_options);
 
         // Enable compression if configured
         match config.compression {
             super::CompressionType::None => {
-                // No compression
+                options.set_compression_type(rocksdb::DBCompressionType::None);
             }
             super::CompressionType::Snappy => {
                 options.set_compression_type(rocksdb::DBCompressionType::Snappy);

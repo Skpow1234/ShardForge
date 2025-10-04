@@ -111,23 +111,28 @@ impl StorageEngineFactory {
                 let engine = crate::rocksdb::RocksDBEngine::new(config, data_path).await?;
                 Ok(Box::new(engine))
             }
+            #[cfg(not(feature = "rocksdb"))]
+            shardforge_config::StorageEngineType::RocksDB => {
+                Err(shardforge_core::ShardForgeError::Config {
+                    message: "RocksDB feature not enabled. Enable with --features rocksdb"
+                        .to_string(),
+                })
+            }
             #[cfg(feature = "sled")]
             shardforge_config::StorageEngineType::Sled => {
                 let engine = crate::sled::SledEngine::new(config, data_path).await?;
                 Ok(Box::new(engine))
             }
+            #[cfg(not(feature = "sled"))]
+            shardforge_config::StorageEngineType::Sled => {
+                Err(shardforge_core::ShardForgeError::Config {
+                    message: "Sled feature not enabled. Enable with --features sled".to_string(),
+                })
+            }
             shardforge_config::StorageEngineType::Memory => {
                 let engine = crate::memory::MemoryEngine::new(config).await?;
                 Ok(Box::new(engine))
             }
-            #[cfg(not(any(feature = "rocksdb", feature = "sled")))]
-            _ => Err(shardforge_core::ShardForgeError::Storage {
-                source: std::io::Error::new(
-                    std::io::ErrorKind::Unsupported,
-                    "No storage engine features enabled",
-                )
-                .into(),
-            }),
         }
     }
 }

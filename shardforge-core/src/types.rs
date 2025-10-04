@@ -125,7 +125,7 @@ impl Default for TransactionId {
 }
 
 /// Key for data storage operations
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct Key(Vec<u8>);
 
 impl Key {

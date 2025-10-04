@@ -78,7 +78,8 @@ impl StorageEngine for MemoryEngine {
 
     fn stats(&self) -> StorageStats {
         // Note: This is a snapshot, stats may change after this call
-        futures::executor::block_on(async { self.stats.read().await.clone() })
+        // We use try_lock to avoid blocking in a non-async context
+        self.stats.try_read().map(|stats| stats.clone()).unwrap_or_default()
     }
 
     async fn flush(&self) -> Result<()> {

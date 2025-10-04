@@ -58,5 +58,8 @@ EXPOSE 5432 9090
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD shardforge --version > /dev/null 2>&1 || exit 1
 
-# Default command
-CMD ["shardforge", "start"]
+# Set entrypoint to shardforge binary so arguments can be passed
+ENTRYPOINT ["shardforge"]
+
+# Default command (can be overridden)
+CMD ["start"]
