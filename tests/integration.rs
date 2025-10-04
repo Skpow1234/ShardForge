@@ -13,6 +13,8 @@ async fn test_full_system_integration() {
     std::fs::create_dir(&data_dir).unwrap();
 
     // 1. Load configuration
+    // Convert Windows paths to forward slashes for TOML compatibility
+    let data_dir_str = data_dir.to_str().unwrap().replace('\\', "/");
     let config_content = r#"
         [cluster]
         name = "integration-test-cluster"
@@ -27,7 +29,7 @@ async fn test_full_system_integration() {
         [logging]
         level = "debug"
     "#
-    .replace("${DATA_DIR}", data_dir.to_str().unwrap());
+    .replace("${DATA_DIR}", &data_dir_str);
 
     let config_path = temp_dir.path().join("integration.toml");
     tokio::fs::write(&config_path, config_content).await.unwrap();
@@ -120,7 +122,7 @@ async fn test_concurrent_workload_simulation() {
     let temp_dir = TempDir::new().unwrap();
 
     let config = StorageConfig::default();
-    let mut engine = StorageEngineFactory::create(
+    let engine = StorageEngineFactory::create(
         shardforge_config::StorageEngineType::Memory,
         &config,
         temp_dir.path(),

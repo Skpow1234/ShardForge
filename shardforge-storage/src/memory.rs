@@ -12,7 +12,6 @@ use super::{StorageConfig, StorageEngine, StorageStats, WriteOperation};
 pub struct MemoryEngine {
     data: Arc<RwLock<BTreeMap<Key, Value>>>,
     stats: Arc<RwLock<StorageStats>>,
-    config: StorageConfig,
 }
 
 impl MemoryEngine {
@@ -20,7 +19,6 @@ impl MemoryEngine {
         Ok(Self {
             data: Arc::new(RwLock::new(BTreeMap::new())),
             stats: Arc::new(RwLock::new(StorageStats::default())),
-            config: _config.clone(),
         })
     }
 }
