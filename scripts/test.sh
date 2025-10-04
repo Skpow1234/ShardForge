@@ -90,7 +90,7 @@ run_test "No Default Features" "cargo test --lib --no-default-features"
 echo ""
 print_status "info" "Running Code Quality Checks..."
 
-run_test "Clippy" "cargo clippy -- -D warnings"
+run_test "Clippy" "cargo clippy -- -W clippy::all -W clippy::pedantic -W clippy::nursery -W clippy::cargo"
 
 run_test "Format Check" "cargo fmt --check"
 

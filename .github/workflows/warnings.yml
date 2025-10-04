@@ -1,0 +1,64 @@
+name: Warnings Check
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  # Check for warnings but don't fail the build
+  warnings-check:
+    name: Check Warnings (Non-blocking)
+    runs-on: ubuntu-latest
+    continue-on-error: true  # This allows the job to pass even with warnings
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - name: Cache cargo dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Check for clippy warnings
+        run: |
+          echo "🔍 Checking for clippy warnings..."
+          cargo clippy --all-targets --all-features -- -W clippy::all -W clippy::pedantic -W clippy::nursery -W clippy::cargo || {
+            echo "⚠️ Clippy warnings found:"
+            echo "This is a non-blocking check. Warnings are logged but don't fail the build."
+            echo "To fix warnings, run: cargo clippy --fix --allow-dirty"
+            exit 0  # Always succeed, just log warnings
+          }
+
+      - name: Check for compiler warnings
+        run: |
+          echo "🔍 Checking for compiler warnings..."
+          cargo check --all-targets --all-features 2>&1 | grep -i warning || {
+            echo "✅ No compiler warnings found"
+            exit 0
+          }
+          echo "⚠️ Compiler warnings found (non-blocking)"
+
+      - name: Summary
+        run: |
+          echo "📋 Warnings Summary:"
+          echo "- This job is non-blocking and will always pass"
+          echo "- Warnings are logged for visibility"
+          echo "- To fix warnings, address the clippy suggestions"
+          echo "- For CI/CD purposes, warnings don't block the pipeline"

@@ -24,7 +24,7 @@ name = "shardforge"
 path = "bin/shardforge.rs"
 
 [features]
-default = ["rocksdb"]
+default = ["sled"]
 rocksdb = ["dep:rocksdb", "shardforge-storage/rocksdb"]
 sled = ["dep:sled", "shardforge-storage/sled"]
 
