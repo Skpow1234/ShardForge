@@ -93,6 +93,7 @@ pub struct StorageEngineFactory;
 
 impl StorageEngineFactory {
     /// Create a storage engine based on configuration
+    #[allow(unused_variables)]
     pub async fn create(
         engine_type: shardforge_config::StorageEngineType,
         config: &StorageConfig,
