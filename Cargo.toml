@@ -3,7 +3,6 @@ members = [
     "shardforge-core",
     "shardforge-config",
     "shardforge-storage",
-    "shardforge-cli",
 ]
 
 [package]

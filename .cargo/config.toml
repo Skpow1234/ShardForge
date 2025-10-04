@@ -1,0 +1,48 @@
+# Cargo build configuration for ShardForge
+# This file provides platform-specific build settings
+
+# Windows configuration
+# If you're on Windows without MSVC Build Tools, you can use the GNU toolchain:
+# rustup target add x86_64-pc-windows-gnu
+# rustup default stable-x86_64-pc-windows-gnu
+
+[target.x86_64-pc-windows-msvc]
+# Default configuration for MSVC target
+# Requires Visual Studio Build Tools with C++ support
+
+[target.x86_64-pc-windows-gnu]
+# Alternative GNU toolchain for Windows
+# Requires MinGW-w64 toolchain
+linker = "x86_64-w64-mingw32-gcc"
+
+# Linux configuration
+[target.x86_64-unknown-linux-gnu]
+# Standard Linux configuration
+
+# macOS configuration
+[target.x86_64-apple-darwin]
+# Standard macOS configuration
+
+[target.aarch64-apple-darwin]
+# Apple Silicon configuration
+
+# Build settings
+[build]
+# Number of parallel jobs (default uses all cores)
+# jobs = 4
+
+# Increase incremental compilation
+incremental = true
+
+# Profile settings for development
+[profile.dev]
+# Faster compilation, slower runtime
+opt-level = 0
+debug = true
+
+[profile.release]
+# Maximum optimization for production
+opt-level = 3
+lto = true
+codegen-units = 1
+

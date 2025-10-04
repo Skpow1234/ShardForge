@@ -59,7 +59,7 @@ if (Test-Path "Cargo.lock") {
 
 # Check workspace members
 Write-Host "`n🔗 Checking workspace members..." -ForegroundColor Yellow
-$workspaceMembers = @("shardforge-core", "shardforge-config", "shardforge-storage", "shardforge-cli")
+$workspaceMembers = @("shardforge-core", "shardforge-config", "shardforge-storage")
 foreach ($member in $workspaceMembers) {
     if (Test-Path "$member/Cargo.toml") {
         Write-Host "✅ $member/Cargo.toml found" -ForegroundColor Green

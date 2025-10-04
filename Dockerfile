@@ -23,7 +23,6 @@ WORKDIR /usr/src/shardforge
     COPY shardforge-core/ shardforge-core/
     COPY shardforge-config/ shardforge-config/
     COPY shardforge-storage/ shardforge-storage/
-    COPY shardforge-cli/ shardforge-cli/
     COPY src/ src/
     COPY bin/ bin/
 

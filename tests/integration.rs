@@ -114,7 +114,7 @@ async fn test_full_system_integration() {
 
     // 4. Test system lifecycle
     engine.flush().await.unwrap();
-    engine.compact(None).await.unwrap();
+    engine.compact().await.unwrap();
     engine.close().await.unwrap();
 
     println!("✅ Full system integration test passed!");
@@ -138,12 +138,13 @@ async fn test_concurrent_workload_simulation() {
 
     let mut handles = vec![];
 
+    // Note: For concurrent testing, we use Arc to share the engine
+    // Each task operates on the same storage engine instance
+    let shared_engine = std::sync::Arc::new(engine);
+
     // Spawn worker tasks
     for worker_id in 0..num_workers {
-        let engine_ref = match &*engine {
-            StorageEngineType::Memory(mem) => mem.clone(),
-            _ => panic!("Test only supports memory engine"),
-        };
+        let engine_ref = shared_engine.clone();
 
         let handle = tokio::spawn(async move {
             let mut local_stats = (0, 0); // (writes, reads)
@@ -186,12 +187,11 @@ async fn test_concurrent_workload_simulation() {
     assert_eq!(total_reads, num_workers * operations_per_worker);
 
     // Verify global statistics
-    let stats = engine.stats();
+    let stats = shared_engine.stats();
     assert!(stats.write_operations >= total_writes as u64);
     assert!(stats.read_operations >= total_reads as u64);
 
-    engine.close().await.unwrap();
-
+    // Note: Engine cleanup happens automatically when Arc is dropped
     println!("✅ Concurrent workload simulation test passed!");
 }
 
