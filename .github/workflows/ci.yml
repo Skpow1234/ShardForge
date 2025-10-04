@@ -90,6 +90,7 @@ jobs:
           else
             cargo build --all-targets --features sled --no-default-features
           fi
+        shell: bash
 
       - name: Run tests with ${{ matrix.features }} features
         run: |
@@ -98,6 +99,7 @@ jobs:
           else
             cargo test --workspace --features sled --no-default-features
           fi
+        shell: bash
 
       - name: Run benchmarks (if available)
         run: |
@@ -106,6 +108,7 @@ jobs:
           else
             cargo bench --features sled --no-default-features || echo "⚠️ Benchmarks failed but continuing..."
           fi
+        shell: bash
 
   # Security audit
   security:
@@ -181,6 +184,7 @@ jobs:
       - name: Run benchmarks
         run: |
           cargo bench --features sled --no-default-features || echo "⚠️ Benchmarks failed but continuing..."
+        shell: bash
 
   # Release preparation
   release-check:
@@ -212,3 +216,4 @@ jobs:
       - name: Test release build
         run: |
           cargo test --release --workspace --features sled --no-default-features
+        shell: bash

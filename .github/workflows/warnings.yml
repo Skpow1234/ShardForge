@@ -45,6 +45,7 @@ jobs:
             echo "To fix warnings, run: cargo clippy --fix --allow-dirty"
             exit 0  # Always succeed, just log warnings
           }
+        shell: bash
 
       - name: Check for compiler warnings
         run: |
@@ -54,6 +55,7 @@ jobs:
             exit 0
           }
           echo "⚠️ Compiler warnings found (non-blocking)"
+        shell: bash
 
       - name: Summary
         run: |
@@ -62,3 +64,4 @@ jobs:
           echo "- Warnings are logged for visibility"
           echo "- To fix warnings, address the clippy suggestions"
           echo "- For CI/CD purposes, warnings don't block the pipeline"
+        shell: bash
