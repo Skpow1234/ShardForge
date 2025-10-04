@@ -84,7 +84,7 @@ async fn handle_init(data_dir: &str, single_node: bool) -> Result<()> {
 
     // Create data directory if it doesn't exist
     std::fs::create_dir_all(data_dir).map_err(|e| {
-        shardforge::core::ShardForgeError::Internal(format!(
+        shardforge::core::ShardForgeError::internal(format!(
             "Failed to create data directory: {}",
             e
         ))
@@ -112,7 +112,7 @@ format = "pretty"
         .replace("${DATA_DIR}", data_dir);
 
         std::fs::write(&config_path, default_config).map_err(|e| {
-            shardforge::core::ShardForgeError::Internal(format!(
+            shardforge::core::ShardForgeError::internal(format!(
                 "Failed to create config file: {}",
                 e
             ))

@@ -25,10 +25,15 @@ path = "bin/shardforge.rs"
 
 [features]
 default = ["rocksdb"]
-rocksdb = ["dep:rocksdb"]
-sled = ["dep:sled"]
+rocksdb = ["dep:rocksdb", "shardforge-storage/rocksdb"]
+sled = ["dep:sled", "shardforge-storage/sled"]
 
 [dependencies]
+# Workspace crates
+shardforge-core = { path = "shardforge-core" }
+shardforge-config = { path = "shardforge-config" }
+shardforge-storage = { path = "shardforge-storage", default-features = false }
+
 # External dependencies
 tokio.workspace = true
 tracing.workspace = true

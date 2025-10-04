@@ -19,7 +19,7 @@ impl SledEngine {
     pub async fn new(config: &StorageConfig, data_path: &Path) -> Result<Self> {
         let sled_config = Config::new()
             .path(data_path)
-            .cache_capacity(config.block_cache_size_mb * 1024 * 1024);
+            .cache_capacity((config.block_cache_size_mb * 1024 * 1024) as u64);
 
         let db = sled_config
             .open()
@@ -103,7 +103,7 @@ impl StorageEngine for SledEngine {
         Ok(())
     }
 
-    async fn close(self) -> Result<()> {
+    async fn close(&mut self) -> Result<()> {
         // Sled doesn't have explicit close, Db will be dropped
         Ok(())
     }
@@ -160,7 +160,7 @@ impl StorageEngine for SledEngine {
         unimplemented!("Sled storage engine not enabled")
     }
 
-    async fn close(self) -> Result<()> {
+    async fn close(&mut self) -> Result<()> {
         unimplemented!("Sled storage engine not enabled")
     }
 }

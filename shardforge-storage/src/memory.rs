@@ -92,7 +92,7 @@ impl StorageEngine for MemoryEngine {
         Ok(())
     }
 
-    async fn close(self) -> Result<()> {
+    async fn close(&mut self) -> Result<()> {
         // No-op for in-memory storage
         Ok(())
     }

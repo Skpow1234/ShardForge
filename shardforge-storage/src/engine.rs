@@ -2,6 +2,7 @@
 
 use async_trait::async_trait;
 use shardforge_core::{Key, Result, Timestamp, Value};
+use shardforge_config::CompressionType;
 use std::collections::HashMap;
 
 /// Storage engine statistics
@@ -48,15 +49,6 @@ impl Default for StorageConfig {
     }
 }
 
-/// Compression types for storage
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum CompressionType {
-    None,
-    Snappy,
-    Lz4,
-    Zstd,
-}
-
 /// Write operation for batch writes
 #[derive(Debug, Clone)]
 pub enum WriteOperation {
@@ -92,7 +84,7 @@ pub trait StorageEngine: Send + Sync {
     async fn compact(&self) -> Result<()>;
 
     /// Close the storage engine
-    async fn close(self) -> Result<()>;
+    async fn close(&mut self) -> Result<()>;
 }
 
 /// Factory for creating storage engines

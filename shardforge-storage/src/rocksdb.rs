@@ -127,7 +127,7 @@ impl StorageEngine for RocksDBEngine {
         Ok(())
     }
 
-    async fn close(self) -> Result<()> {
+    async fn close(&mut self) -> Result<()> {
         // RocksDB doesn't have explicit close, DB will be dropped
         Ok(())
     }
@@ -184,7 +184,7 @@ impl StorageEngine for RocksDBEngine {
         unimplemented!("RocksDB storage engine not enabled")
     }
 
-    async fn close(self) -> Result<()> {
+    async fn close(&mut self) -> Result<()> {
         unimplemented!("RocksDB storage engine not enabled")
     }
 }

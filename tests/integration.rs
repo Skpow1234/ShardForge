@@ -44,15 +44,10 @@ async fn test_full_system_integration() {
         write_buffer_size_mb: config.storage.write_buffer_size_mb,
         max_write_buffer_number: config.storage.max_write_buffer_number,
         enable_statistics: config.storage.enable_statistics,
-        compression: match config.storage.compression {
-            crate::config::CompressionType::None => CompressionType::None,
-            crate::config::CompressionType::Snappy => CompressionType::Snappy,
-            crate::config::CompressionType::Lz4 => CompressionType::Lz4,
-            crate::config::CompressionType::Zstd => CompressionType::Zstd,
-        },
+        compression: config.storage.compression,
     };
 
-    let engine = StorageEngineFactory::create(config.storage.engine, &storage_config, &data_dir)
+    let mut engine = StorageEngineFactory::create(config.storage.engine, &storage_config, &data_dir)
         .await
         .unwrap();
 
@@ -125,7 +120,7 @@ async fn test_concurrent_workload_simulation() {
     let temp_dir = TempDir::new().unwrap();
 
     let config = StorageConfig::default();
-    let engine = StorageEngineFactory::create(
+    let mut engine = StorageEngineFactory::create(
         shardforge_config::StorageEngineType::Memory,
         &config,
         temp_dir.path(),
@@ -200,7 +195,7 @@ async fn test_error_handling_and_recovery() {
     let temp_dir = TempDir::new().unwrap();
 
     let config = StorageConfig::default();
-    let engine = StorageEngineFactory::create(
+    let mut engine = StorageEngineFactory::create(
         shardforge_config::StorageEngineType::Memory,
         &config,
         temp_dir.path(),
@@ -251,7 +246,7 @@ async fn test_system_performance_baseline() {
     let temp_dir = TempDir::new().unwrap();
 
     let config = StorageConfig::default();
-    let engine = StorageEngineFactory::create(
+    let mut engine = StorageEngineFactory::create(
         shardforge_config::StorageEngineType::Memory,
         &config,
         temp_dir.path(),

@@ -19,26 +19,13 @@
 #![warn(missing_docs, rust_2018_idioms, unused_qualifications)]
 #![deny(unsafe_code)]
 
-/// Core types and utilities
-pub mod core;
-
-/// Storage engine abstraction and implementations
-pub mod storage;
-
-// Future modules (to be implemented)
-// pub mod sql;
-// pub mod transaction;
-// pub mod consensus;
-// pub mod network;
-
-/// Configuration management and validation
-pub mod config;
-
-// Main server orchestration and lifecycle (planned)
-// pub mod server;
+// Re-export workspace crates
+pub use shardforge_core as core;
+pub use shardforge_config as config;
+pub use shardforge_storage as storage;
 
 // Re-export commonly used types for convenience
-pub use core::*;
+pub use shardforge_core::*;
 
 /// Version information
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
