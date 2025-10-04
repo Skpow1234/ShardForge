@@ -6,7 +6,10 @@ use shardforge_core::{Key, Result, Value};
 use std::path::Path;
 
 #[cfg(feature = "rocksdb")]
-use rocksdb::{BlockBasedOptions, Cache, Options, WriteBatch, DB};
+use shardforge_config::CompressionType;
+
+#[cfg(feature = "rocksdb")]
+use rocksdb::{Options, WriteBatch, DB};
 
 #[cfg(feature = "rocksdb")]
 pub struct RocksDBEngine {
@@ -32,16 +35,16 @@ impl RocksDBEngine {
 
         // Enable compression if configured
         match config.compression {
-            super::CompressionType::None => {
+            CompressionType::None => {
                 options.set_compression_type(rocksdb::DBCompressionType::None);
             }
-            super::CompressionType::Snappy => {
+            CompressionType::Snappy => {
                 options.set_compression_type(rocksdb::DBCompressionType::Snappy);
             }
-            super::CompressionType::Lz4 => {
+            CompressionType::Lz4 => {
                 options.set_compression_type(rocksdb::DBCompressionType::Lz4);
             }
-            super::CompressionType::Zstd => {
+            CompressionType::Zstd => {
                 options.set_compression_type(rocksdb::DBCompressionType::Zstd);
             }
         }
