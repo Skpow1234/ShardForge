@@ -44,12 +44,15 @@ docker stop shardforge-db && docker rm shardforge-db
 
 ### Build from Source
 
-**Prerequisites:** [Rust 1.80+](https://rustup.rs/) and system dependencies (OpenSSL, pkg-config).
+**Prerequisites:** [Rust 1.80+](https://rustup.rs/) and system dependencies.
 
 ```bash
 # Clone and build
 git clone https://github.com/shardforge/shardforge.git
 cd shardforge
+
+# Install system dependencies (Linux)
+sudo apt-get install -y build-essential pkg-config libssl-dev clang
 
 # Build in release mode
 cargo build --release

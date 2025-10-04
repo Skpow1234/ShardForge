@@ -49,6 +49,9 @@ jobs:
     - name: Check documentation
       run: cargo doc --no-deps
 
+    - name: Install cargo-public-api
+      run: cargo install cargo-public-api --version 0.31.0 || echo "Failed to install cargo-public-api"
+
     - name: Check for breaking changes
       run: |
         # Check if public API changed

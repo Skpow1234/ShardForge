@@ -185,7 +185,7 @@ async fn test_config_validation_comprehensive() {
 
 #[tokio::test]
 async fn test_config_round_trip() {
-    let original_config = ShardForgeConfig::default();
+    let mut original_config = ShardForgeConfig::default();
     original_config.cluster.name = "round-trip-test".to_string();
     original_config.node.bind_address = "127.0.0.1:9999".to_string();
 

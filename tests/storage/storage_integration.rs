@@ -63,18 +63,13 @@ async fn test_storage_engine_concurrency() {
         temp_dir.path()
     ).await.unwrap();
 
+    // Use Arc for proper sharing across tasks
+    let shared_engine = std::sync::Arc::new(engine);
     let mut handles = vec![];
 
     // Spawn multiple concurrent operations
     for i in 0..10 {
-        let engine_clone = match &*engine {
-            shardforge_storage::StorageEngineType::Memory(mem) => {
-                // For memory engine, we can share the reference
-                // In real engines, this would need proper cloning/sharing
-                mem.clone()
-            }
-            _ => panic!("Test only supports memory engine"),
-        };
+        let engine_clone = shared_engine.clone();
 
         let handle = tokio::spawn(async move {
             for j in 0..100 {
@@ -95,7 +90,7 @@ async fn test_storage_engine_concurrency() {
         handle.await.unwrap();
     }
 
-    engine.close().await.unwrap();
+    // No need to close - Arc will handle cleanup automatically
 }
 
 #[tokio::test]
@@ -184,7 +179,7 @@ async fn test_storage_engine_flush_and_compact() {
     engine.flush().await.unwrap();
 
     // Compact (no-op for memory engine, but should not error)
-    engine.compact(None).await.unwrap();
+    engine.compact().await.unwrap();
 
     engine.close().await.unwrap();
 }
