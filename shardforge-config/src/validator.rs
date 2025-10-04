@@ -229,15 +229,15 @@ impl ConfigValidator {
 
     fn validate_monitoring(monitoring: &crate::MonitoringSection) -> Result<()> {
         // Validate metrics bind address
-        if monitoring.enabled {
-            if monitoring.bind_address.parse::<std::net::SocketAddr>().is_err() {
-                return Err(shardforge_core::ShardForgeError::Config {
-                    message: format!(
-                        "Invalid monitoring bind address: {}",
-                        monitoring.bind_address
-                    ),
-                });
-            }
+        if monitoring.enabled
+            && monitoring.bind_address.parse::<std::net::SocketAddr>().is_err()
+        {
+            return Err(shardforge_core::ShardForgeError::Config {
+                message: format!(
+                    "Invalid monitoring bind address: {}",
+                    monitoring.bind_address
+                ),
+            });
         }
 
         // Validate service name

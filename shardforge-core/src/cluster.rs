@@ -17,10 +17,6 @@ impl ClusterId {
     pub fn from_string(s: &str) -> Result<Self> {
         Ok(Self(Uuid::parse_str(s)?))
     }
-
-    pub fn to_string(&self) -> String {
-        self.0.to_string()
-    }
 }
 
 impl fmt::Display for ClusterId {

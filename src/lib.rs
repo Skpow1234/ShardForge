@@ -20,8 +20,8 @@
 #![deny(unsafe_code)]
 
 // Re-export workspace crates
-pub use shardforge_core as core;
 pub use shardforge_config as config;
+pub use shardforge_core as core;
 pub use shardforge_storage as storage;
 
 // Re-export commonly used types for convenience

@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 /// Main configuration structure for ShardForge
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ShardForgeConfig {
     /// Cluster configuration
     pub cluster: ClusterSection,
@@ -182,19 +182,6 @@ pub enum LogFormat {
 impl Default for LogFormat {
     fn default() -> Self {
         Self::Pretty
-    }
-}
-
-impl Default for ShardForgeConfig {
-    fn default() -> Self {
-        Self {
-            cluster: ClusterSection::default(),
-            node: NodeSection::default(),
-            storage: StorageSection::default(),
-            network: NetworkSection::default(),
-            logging: LoggingSection::default(),
-            monitoring: MonitoringSection::default(),
-        }
     }
 }
 

@@ -1,9 +1,6 @@
 # Clippy linting configuration
 # https://doc.rust-lang.org/clippy/
 
-# Allow some pedantic lints that are too strict
-allow = []
-
 # Deny these lints
 disallowed-methods = []
 
@@ -18,6 +15,3 @@ trivial-copy-size-limit = 64
 
 # Documentation settings
 check-private-items = true
-
-# Cargo-specific settings
-cargo = { avoid-dev-deps = true }

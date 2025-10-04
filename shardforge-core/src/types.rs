@@ -17,9 +17,6 @@ impl NodeId {
         Ok(Self(Uuid::parse_str(s)?))
     }
 
-    pub fn to_string(&self) -> String {
-        self.0.to_string()
-    }
 }
 
 impl fmt::Display for NodeId {
@@ -47,9 +44,6 @@ impl DatabaseId {
         Ok(Self(Uuid::parse_str(s)?))
     }
 
-    pub fn to_string(&self) -> String {
-        self.0.to_string()
-    }
 }
 
 impl fmt::Display for DatabaseId {
@@ -77,9 +71,6 @@ impl TableId {
         Ok(Self(Uuid::parse_str(s)?))
     }
 
-    pub fn to_string(&self) -> String {
-        self.0.to_string()
-    }
 }
 
 impl fmt::Display for TableId {
@@ -107,9 +98,6 @@ impl TransactionId {
         Ok(Self(Uuid::parse_str(s)?))
     }
 
-    pub fn to_string(&self) -> String {
-        self.0.to_string()
-    }
 }
 
 impl fmt::Display for TransactionId {
@@ -205,7 +193,7 @@ impl fmt::Display for Value {
 }
 
 /// Version identifier for MVCC
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Default)]
 pub struct Version(u64);
 
 impl Version {
@@ -219,12 +207,6 @@ impl Version {
 
     pub fn value(&self) -> u64 {
         self.0
-    }
-}
-
-impl Default for Version {
-    fn default() -> Self {
-        Self(0)
     }
 }
 

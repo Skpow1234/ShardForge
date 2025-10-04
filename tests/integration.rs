@@ -49,9 +49,10 @@ async fn test_full_system_integration() {
         compression: config.storage.compression,
     };
 
-    let mut engine = StorageEngineFactory::create(config.storage.engine, &storage_config, &data_dir)
-        .await
-        .unwrap();
+    let mut engine =
+        StorageEngineFactory::create(config.storage.engine, &storage_config, &data_dir)
+            .await
+            .unwrap();
 
     // 3. Test full CRUD operations
     let test_cases = vec![
