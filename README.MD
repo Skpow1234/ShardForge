@@ -27,16 +27,16 @@ mkdir -p data
 docker pull shardforge/shardforge:latest
 
 # Initialize database
-docker run --rm -v $(pwd)/data:/data shardforge/shardforge:latest shardforge init --single-node --data-dir /data
+docker run --rm -v $(pwd)/data:/data shardforge/shardforge:latest init --single-node --data-dir /data
 
 # Start the database server
-docker run -d --name shardforge-db -v $(pwd)/data:/data -p 5432:5432 shardforge/shardforge:latest shardforge start --config /data/shardforge.toml
+docker run -d --name shardforge-db -v $(pwd)/data:/data -p 5432:5432 shardforge/shardforge:latest start --config /data/shardforge.toml
 
 # Check status
-docker run --rm --network container:shardforge-db shardforge/shardforge:latest shardforge status
+docker run --rm --network container:shardforge-db shardforge/shardforge:latest status
 
 # Execute SQL queries
-docker run -it --rm --network container:shardforge-db shardforge/shardforge:latest shardforge sql "SELECT 1 as welcome"
+docker run -it --rm --network container:shardforge-db shardforge/shardforge:latest sql "SELECT 1 as welcome"
 
 # Stop the database
 docker stop shardforge-db && docker rm shardforge-db
@@ -79,13 +79,13 @@ For local development with persistent storage:
 docker-compose up -d
 
 # Initialize database (first time only)
-docker-compose exec shardforge shardforge init --single-node --data-dir /data/shardforge
+docker-compose exec shardforge init --single-node --data-dir /data/shardforge
 
 # Check database status
-docker-compose exec shardforge shardforge status --detailed
+docker-compose exec shardforge status --detailed
 
 # Execute SQL queries
-docker-compose exec shardforge shardforge sql "SELECT 1 as welcome"
+docker-compose exec shardforge sql "SELECT 1 as welcome"
 
 # View logs
 docker-compose logs -f shardforge
