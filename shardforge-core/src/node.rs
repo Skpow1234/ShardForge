@@ -1,8 +1,10 @@
 //! Node-related types and interfaces
 
-use crate::NodeId;
-use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
+
+use serde::{Deserialize, Serialize};
+
+use crate::NodeId;
 
 /// Represents the state of a database node
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

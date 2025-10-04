@@ -1,8 +1,10 @@
 //! Configuration loading and management
 
-use crate::ShardForgeConfig;
-use shardforge_core::Result;
 use std::path::Path;
+
+use shardforge_core::Result;
+
+use crate::ShardForgeConfig;
 
 /// Configuration loader with hierarchical loading support
 pub struct ConfigLoader {
@@ -255,8 +257,9 @@ impl Default for ConfigLoader {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use tempfile::TempDir;
+
+    use super::*;
 
     #[tokio::test]
     async fn test_load_default_config() {

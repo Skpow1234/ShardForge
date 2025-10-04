@@ -1,7 +1,8 @@
 //! Configuration validation
 
-use crate::ShardForgeConfig;
 use shardforge_core::Result;
+
+use crate::ShardForgeConfig;
 
 /// Configuration validator
 pub struct ConfigValidator;

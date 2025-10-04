@@ -171,8 +171,9 @@ pub async fn collect_iterator(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use shardforge_core::Key;
+
+    use super::*;
 
     #[test]
     fn test_iterator_options_should_include() {

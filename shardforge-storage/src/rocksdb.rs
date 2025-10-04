@@ -1,15 +1,15 @@
 //! RocksDB storage engine implementation
 
-use super::{StorageConfig, StorageEngine, StorageStats, WriteOperation};
-use async_trait::async_trait;
-use shardforge_core::{Key, Result, Value};
 use std::path::Path;
 
-#[cfg(feature = "rocksdb")]
-use shardforge_config::CompressionType;
-
+use async_trait::async_trait;
 #[cfg(feature = "rocksdb")]
 use rocksdb::{Options, WriteBatch, DB};
+#[cfg(feature = "rocksdb")]
+use shardforge_config::CompressionType;
+use shardforge_core::{Key, Result, Value};
+
+use super::{StorageConfig, StorageEngine, StorageStats, WriteOperation};
 
 #[cfg(feature = "rocksdb")]
 pub struct RocksDBEngine {

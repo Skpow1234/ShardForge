@@ -1,9 +1,10 @@
 //! Storage engine abstraction
 
+use std::collections::HashMap;
+
 use async_trait::async_trait;
 use shardforge_config::CompressionType;
 use shardforge_core::{Key, Result, Timestamp, Value};
-use std::collections::HashMap;
 
 /// Storage engine statistics
 #[derive(Debug, Clone, Default)]

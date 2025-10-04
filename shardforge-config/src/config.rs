@@ -1,7 +1,8 @@
 //! Configuration structures for ShardForge
 
-use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
+
+use serde::{Deserialize, Serialize};
 
 /// Main configuration structure for ShardForge
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]

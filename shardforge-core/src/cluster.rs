@@ -1,9 +1,11 @@
 //! Cluster-related types and interfaces
 
-use crate::{NodeId, NodeInfo, Result};
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+
+use crate::{NodeId, NodeInfo, Result};
 
 /// Unique identifier for a cluster
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]

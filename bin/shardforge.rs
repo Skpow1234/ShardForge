@@ -1,8 +1,9 @@
 //! ShardForge Command Line Interface
 
+use std::process;
+
 use clap::{CommandFactory, Parser, Subcommand};
 use shardforge::core::Result;
-use std::process;
 
 #[derive(Parser)]
 #[command(name = "shardforge")]

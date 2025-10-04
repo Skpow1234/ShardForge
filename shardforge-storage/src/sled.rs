@@ -1,12 +1,13 @@
 //! Sled storage engine implementation
 
-use super::{StorageConfig, StorageEngine, StorageStats, WriteOperation};
-use async_trait::async_trait;
-use shardforge_core::{Key, Result, Value};
 use std::path::Path;
 
+use async_trait::async_trait;
+use shardforge_core::{Key, Result, Value};
 #[cfg(feature = "sled")]
 use sled::{Config, Db};
+
+use super::{StorageConfig, StorageEngine, StorageStats, WriteOperation};
 
 #[cfg(feature = "sled")]
 pub struct SledEngine {

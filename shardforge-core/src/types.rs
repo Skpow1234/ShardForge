@@ -1,7 +1,8 @@
 //! Core type definitions for ShardForge
 
-use serde::{Deserialize, Serialize};
 use std::fmt;
+
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 /// Unique identifier for nodes in the cluster
