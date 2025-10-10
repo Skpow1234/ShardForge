@@ -114,8 +114,8 @@ impl Default for TransactionId {
 pub struct Key(Vec<u8>);
 
 impl Key {
-    pub fn new(data: Vec<u8>) -> Self {
-        Self(data)
+    pub fn new(data: &[u8]) -> Self {
+        Self(data.to_vec())
     }
 
     pub fn from_string(s: &str) -> Self {
@@ -140,6 +140,12 @@ impl Key {
 
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
+    }
+}
+
+impl AsRef<[u8]> for Key {
+    fn as_ref(&self) -> &[u8] {
+        &self.0
     }
 }
 
@@ -154,8 +160,8 @@ impl fmt::Display for Key {
 pub struct Value(Vec<u8>);
 
 impl Value {
-    pub fn new(data: Vec<u8>) -> Self {
-        Self(data)
+    pub fn new(data: &[u8]) -> Self {
+        Self(data.to_vec())
     }
 
     pub fn from_string(s: &str) -> Self {
@@ -180,6 +186,12 @@ impl Value {
 
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
+    }
+}
+
+impl AsRef<[u8]> for Value {
+    fn as_ref(&self) -> &[u8] {
+        &self.0
     }
 }
 

@@ -1,6 +1,11 @@
 services:
   shardforge:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder
+      cache_from:
+        - shardforge:builder
     ports:
       - "5432:5432"
       - "9090:9090"
@@ -9,9 +14,24 @@ services:
       - ./shardforge.toml:/etc/shardforge/config.toml
     environment:
       - RUST_LOG=info
+      - RUST_BACKTRACE=1
     networks:
       - shardforge-net
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "shardforge", "--version"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+        reservations:
+          memory: 512M
+          cpus: '0.5'
 
   # For future multi-node setup
   # shardforge-node2:

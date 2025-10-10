@@ -218,7 +218,7 @@ impl MVCCStorage {
             0
         };
 
-        for (key, versions_list) in versions.iter_mut() {
+        for (_key, versions_list) in versions.iter_mut() {
             let mut new_versions = Vec::new();
             let mut latest_committed = None;
 

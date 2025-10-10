@@ -48,6 +48,7 @@ pub enum Token {
     Constraint,
     Primary,
     Key,
+    On,
     Foreign,
     References,
     Unique,

@@ -217,3 +217,83 @@ jobs:
         run: |
           cargo test --release --workspace --features sled --no-default-features
         shell: bash
+
+  # Docker build and test
+  docker:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Cache Docker layers
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
+
+      - name: Build Docker image (optimized)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: false
+          tags: shardforge:test
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dst=/tmp/.buildx-cache-new,mode=max
+          build-args: |
+            BUILDKIT_INLINE_CACHE=1
+
+      - name: Test Docker image
+        run: |
+          # Test that the container starts
+          docker run --rm -d --name shardforge-test -p 5432:5432 shardforge:test
+          sleep 5
+          # Check if container is running
+          if docker ps | grep -q shardforge-test; then
+            echo "✅ Docker container started successfully"
+          else
+            echo "❌ Docker container failed to start"
+            docker logs shardforge-test
+            exit 1
+          fi
+          # Clean up
+          docker stop shardforge-test || true
+          docker rm shardforge-test || true
+
+      - name: Move cache
+        run: |
+          rm -rf /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+
+      - name: Build Docker image (fast version)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile.fast
+          push: false
+          tags: shardforge:fast-test
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dst=/tmp/.buildx-cache-new,mode=max
+
+      - name: Test fast Docker image
+        run: |
+          # Test that the fast container starts
+          docker run --rm -d --name shardforge-fast-test -p 5433:5432 shardforge:fast-test
+          sleep 5
+          # Check if container is running
+          if docker ps | grep -q shardforge-fast-test; then
+            echo "✅ Fast Docker container started successfully"
+          else
+            echo "❌ Fast Docker container failed to start"
+            docker logs shardforge-fast-test
+            exit 1
+          fi
+          # Clean up
+          docker stop shardforge-fast-test || true
+          docker rm shardforge-fast-test || true

@@ -82,7 +82,6 @@ impl DatabaseClient {
     ) -> Result<proto::CommitResponse> {
         let request = proto::CommitRequest {
             transaction_id,
-            commit_timestamp,
         };
 
         let response = self
@@ -104,7 +103,6 @@ impl DatabaseClient {
     ) -> Result<proto::RollbackResponse> {
         let request = proto::RollbackRequest {
             transaction_id,
-            reason,
         };
 
         let response = self
@@ -142,8 +140,7 @@ impl DatabaseClient {
     ) -> Result<proto::HeartbeatResponse> {
         let request = proto::HeartbeatRequest {
             node_id,
-            timestamp,
-            status: Some(status),
+            status,
         };
 
         let response = self

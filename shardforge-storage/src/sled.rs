@@ -39,7 +39,7 @@ impl StorageEngine for SledEngine {
             .get(key.as_slice())
             .map_err(|e| shardforge_core::ShardForgeError::Storage { source: Box::new(e) })?;
 
-        Ok(result.map(|ivec| Value::new(ivec.to_vec())))
+        Ok(result.map(|ivec| Value::new(&ivec.to_vec())))
     }
 
     async fn put(&self, key: Key, value: Value) -> Result<()> {

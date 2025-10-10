@@ -3,7 +3,7 @@
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 
-use shardforge_core::{Key, Result, ShardForgeError, Value};
+use shardforge_core::{Key, Result, ShardForgeError};
 use tokio::sync::RwLock;
 
 /// Index trait for different index types
@@ -399,8 +399,8 @@ impl IndexManager {
     }
     
     /// Get an index by name
-    pub async fn get_index(&self, name: &str) -> Option<Arc<dyn Index + Send + Sync>> {
-        let indexes = self.indexes.read().await;
+    pub async fn get_index(&self, _name: &str) -> Option<Arc<dyn Index + Send + Sync>> {
+        let _indexes = self.indexes.read().await;
         // This is a simplified version - in a real implementation, we'd need to handle
         // the conversion from Box<dyn Index> to Arc<dyn Index + Send + Sync> properly
         None // Placeholder

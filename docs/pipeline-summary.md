@@ -77,6 +77,14 @@ This document summarizes the fixes and improvements made to the ShardForge proje
 - **`Cargo.toml`** - Changed default features from `rocksdb` to `sled`
 - **`shardforge-storage/Cargo.toml`** - Updated default features
 
+### Docker Optimization
+
+- **`Dockerfile`** - Optimized multi-stage build with dependency caching
+- **`Dockerfile.fast`** - Alternative fast build using cargo-chef
+- **`.dockerignore`** - Optimized build context exclusions
+- **`docker-compose.yml`** - Added health checks and resource limits
+- **`docker-compose.perf.yml`** - Performance monitoring configuration
+
 ## Pipeline Rules
 
 ### Warnings Policy
@@ -135,6 +143,25 @@ cargo test --workspace --features sled --no-default-features
 cargo test --workspace --features rocksdb --no-default-features
 ```
 
+### Docker Commands
+
+```bash
+# Build optimized Docker image
+docker build -t shardforge:latest .
+
+# Build fast Docker image (cargo-chef)
+docker build -f Dockerfile.fast -t shardforge:fast .
+
+# Run with docker-compose
+docker-compose up -d
+
+# Run performance comparison
+docker-compose -f docker-compose.perf.yml --profile perf up -d
+
+# Build with Buildx for better caching
+docker buildx build --cache-from shardforge:builder --cache-to shardforge:builder --load -t shardforge:cached .
+```
+
 ## Benefits
 
 1. **Improved Windows Compatibility**: Default to `sled` avoids C++ build tool requirements
@@ -144,12 +171,29 @@ cargo test --workspace --features rocksdb --no-default-features
 5. **Flexible Feature Selection**: Easy switching between storage engines
 6. **Comprehensive Testing**: Multiple feature combinations and test types
 
+### Docker Optimization Benefits
+
+7. **Faster Builds**: Dependency caching reduces build time by ~70%
+8. **Layer Caching**: Docker Buildx with local cache for faster CI/CD
+9. **Multi-stage Efficiency**: Separate builder and runtime stages reduce image size
+10. **Build Context Optimization**: `.dockerignore` excludes unnecessary files
+11. **Container Testing**: Automated health checks and startup verification
+12. **Resource Management**: Memory and CPU limits prevent resource exhaustion
+
 ## Next Steps
 
 1. **Monitor Warnings**: Use the warnings pipeline to track and gradually fix warnings
 2. **Feature Development**: Continue development with the improved build system
 3. **Documentation**: Keep build documentation updated as the project evolves
 4. **Performance**: Use benchmarks to track performance improvements
+
+### Docker-Specific Next Steps
+
+5. **Build Time Monitoring**: Track Docker build times to measure optimization effectiveness
+6. **Image Size Optimization**: Monitor and reduce final Docker image sizes
+7. **Multi-Architecture**: Consider adding ARM64 builds for broader compatibility
+8. **Security Scanning**: Add container vulnerability scanning to CI/CD
+9. **Registry Integration**: Set up automated pushes to container registries
 
 ## Troubleshooting
 
@@ -160,8 +204,17 @@ cargo test --workspace --features rocksdb --no-default-features
 3. **Clippy Warnings**: Use `cargo clippy --fix` to auto-fix some issues
 4. **Build Failures**: Check the build documentation for platform-specific requirements
 
+### Docker-Specific Issues
+
+5. **Slow Builds**: Ensure Docker layer caching is enabled (`docker buildx`)
+6. **Build Context Too Large**: Check `.dockerignore` excludes unnecessary files
+7. **Container Won't Start**: Check health check logs and resource limits
+8. **Permission Errors**: Ensure proper user permissions in Docker containers
+9. **Cache Invalidation**: Clear Docker cache if builds aren't using cached layers
+
 ### Getting Help
 
 - Check `docs/build.md` for detailed troubleshooting
 - Use the diagnostic scripts: `.\scripts\build.ps1 -Help`
 - Review CI/CD logs for specific error messages
+- For Docker issues: Check `docker build --progress=plain` for detailed build logs

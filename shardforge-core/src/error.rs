@@ -13,10 +13,8 @@ pub enum ShardForgeError {
         source: Box<dyn std::error::Error + Send + Sync>,
     },
 
-    #[error("Network error: {source}")]
-    Network {
-        source: Box<dyn std::error::Error + Send + Sync>,
-    },
+    #[error("Network error: {message}")]
+    Network { message: String },
 
     #[error("Consensus error: {source}")]
     Consensus {
@@ -34,6 +32,12 @@ pub enum ShardForgeError {
 
     #[error("Internal error: {message}")]
     Internal { message: String },
+
+    #[error("Index error: {message}")]
+    Index { message: String },
+
+    #[error("Parse error: {message}")]
+    Parse { message: String },
 }
 
 impl ShardForgeError {
@@ -45,8 +49,8 @@ impl ShardForgeError {
         Self::Storage { source: Box::new(error) }
     }
 
-    pub fn network<E: std::error::Error + Send + Sync + 'static>(error: E) -> Self {
-        Self::Network { source: Box::new(error) }
+    pub fn network<S: Into<String>>(message: S) -> Self {
+        Self::Network { message: message.into() }
     }
 
     pub fn consensus<E: std::error::Error + Send + Sync + 'static>(error: E) -> Self {
@@ -67,6 +71,14 @@ impl ShardForgeError {
 
     pub fn internal<S: Into<String>>(message: S) -> Self {
         Self::Internal { message: message.into() }
+    }
+
+    pub fn index<S: Into<String>>(message: S) -> Self {
+        Self::Index { message: message.into() }
+    }
+
+    pub fn parse<S: Into<String>>(message: S) -> Self {
+        Self::Parse { message: message.into() }
     }
 }
 
