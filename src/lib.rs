@@ -12,7 +12,7 @@
 //! - **SQL Layer**: SQL parsing, query planning, and execution (planned)
 //! - **Transaction Layer**: ACID transactions and concurrency control (planned)
 //! - **Consensus Layer**: RAFT consensus and distributed coordination (planned)
-//! - **Network Layer**: RPC communication and client connections (planned)
+//! - **Network Layer**: gRPC communication and client connections
 //! - **Configuration Layer**: Hierarchical configuration management
 //! - **Server Layer**: Main database node orchestration (planned)
 
@@ -25,6 +25,9 @@ pub use shardforge_core as core;
 // Re-export commonly used types for convenience
 pub use shardforge_core::*;
 pub use shardforge_storage as storage;
+
+// Local modules
+pub mod network;
 
 /// Version information
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");

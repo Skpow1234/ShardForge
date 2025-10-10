@@ -40,6 +40,11 @@ tracing.workspace = true
 serde_json.workspace = true
 clap.workspace = true
 
+# gRPC and networking
+tonic = "0.12"
+prost = "0.13"
+tower = "0.5"
+
 # Storage engine dependencies (optional)
 rocksdb = { version = "0.22", optional = true }
 sled = { version = "0.34", optional = true }
@@ -87,6 +92,8 @@ comfy-table = "7.1"
 clap-bin = { version = "4.4", features = ["derive"] }
 
 # No build dependencies needed
+[build-dependencies]
+tonic-build = "0.12"
 
 [dev-dependencies]
 # Testing frameworks
