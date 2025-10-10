@@ -5,6 +5,7 @@ This document explains how to build ShardForge on different platforms and handle
 ## Quick Start
 
 ### Windows
+
 ```powershell
 # Build with sled (recommended for Windows)
 .\scripts\build.ps1 -Test
@@ -14,6 +15,7 @@ This document explains how to build ShardForge on different platforms and handle
 ```
 
 ### Linux/macOS
+
 ```bash
 # Build and test
 make check
@@ -28,6 +30,7 @@ cargo test --workspace --features sled --no-default-features
 ShardForge supports multiple storage engines:
 
 ### Sled (Default, Windows-friendly)
+
 - Pure Rust implementation
 - No C++ dependencies
 - Good for development and testing
@@ -39,6 +42,7 @@ cargo test --workspace --features sled --no-default-features
 ```
 
 ### RocksDB (Production)
+
 - High-performance C++ storage engine
 - Requires C++ build tools
 - Better for production workloads
@@ -54,10 +58,12 @@ cargo test --workspace --features rocksdb --no-default-features
 ### Windows
 
 #### Prerequisites for Sled (Recommended)
+
 - Rust toolchain
 - No additional dependencies required
 
 #### Prerequisites for RocksDB
+
 - Visual Studio Build Tools 2019 or later
 - Windows SDK
 - CMake (optional, for advanced configuration)
@@ -93,6 +99,7 @@ brew install openssl pkg-config
 ## Build Commands
 
 ### Basic Build
+
 ```bash
 # Default (sled)
 cargo build
@@ -103,6 +110,7 @@ cargo build --features rocksdb --no-default-features
 ```
 
 ### Testing
+
 ```bash
 # All tests
 cargo test --workspace
@@ -113,6 +121,7 @@ cargo test --workspace --features rocksdb --no-default-features
 ```
 
 ### Formatting and Linting
+
 ```bash
 # Format code
 cargo fmt
@@ -128,6 +137,7 @@ cargo clippy -- -D warnings
 ```
 
 ### Benchmarks
+
 ```bash
 # Run benchmarks
 cargo bench
@@ -142,6 +152,7 @@ cargo bench --features rocksdb --no-default-features
 The project includes GitHub Actions workflows that handle:
 
 ### Main CI Pipeline (`.github/workflows/ci.yml`)
+
 - Format and lint checks
 - Multi-platform testing (Ubuntu, Windows, macOS)
 - Multiple feature combinations
@@ -150,6 +161,7 @@ The project includes GitHub Actions workflows that handle:
 - Performance benchmarks
 
 ### Warnings Pipeline (`.github/workflows/warnings.yml`)
+
 - Non-blocking warnings check
 - Logs warnings without failing the build
 - Useful for tracking code quality improvements
@@ -159,9 +171,11 @@ The project includes GitHub Actions workflows that handle:
 ### Windows Build Issues
 
 #### "fatal error: 'stddef.h' file not found"
+
 This indicates missing C++ build tools. Solutions:
 
 1. **Use Sled instead (Recommended)**:
+
    ```powershell
    .\scripts\build.ps1 -Features sled -Test
    ```
@@ -172,16 +186,19 @@ This indicates missing C++ build tools. Solutions:
    - Restart terminal and try again
 
 #### "cl : Línea de comandos warning D9002"
+
 This is a harmless warning from the C++ compiler. It can be ignored.
 
 ### Linux Build Issues
 
 #### "No package 'openssl' found"
+
 ```bash
 sudo apt-get install -y libssl-dev pkg-config
 ```
 
 #### "No package 'zlib' found"
+
 ```bash
 sudo apt-get install -y zlib1g-dev
 ```
@@ -189,6 +206,7 @@ sudo apt-get install -y zlib1g-dev
 ### macOS Build Issues
 
 #### "No package 'openssl' found"
+
 ```bash
 brew install openssl pkg-config
 export PKG_CONFIG_PATH="/usr/local/opt/openssl/lib/pkgconfig"
@@ -197,11 +215,13 @@ export PKG_CONFIG_PATH="/usr/local/opt/openssl/lib/pkgconfig"
 ## Performance Considerations
 
 ### Development
+
 - Use `sled` for faster builds
 - Enable debug symbols for better error messages
 - Use `cargo check` for fast syntax checking
 
 ### Production
+
 - Use `rocksdb` for better performance
 - Enable LTO and optimizations
 - Consider using release builds for benchmarking
@@ -222,16 +242,19 @@ export PKG_CONFIG_PATH="/usr/local/opt/openssl/lib/pkgconfig"
 ## Scripts Reference
 
 ### Windows PowerShell Scripts
+
 - `scripts/build.ps1` - Main build script
 - `scripts/dev.ps1` - Development environment setup
 - `scripts/diagnose.ps1` - System diagnostics
 - `scripts/fix.ps1` - Common issue fixes
 
 ### Linux/macOS Scripts
+
 - `scripts/test.sh` - Comprehensive test runner
 - `Makefile` - Development commands
 
 ### Usage Examples
+
 ```powershell
 # Windows - Basic build and test
 .\scripts\build.ps1 -Test
@@ -259,18 +282,21 @@ make test
 When contributing to ShardForge:
 
 1. **Always test with both storage engines**:
+
    ```bash
    cargo test --workspace --features sled --no-default-features
    cargo test --workspace --features rocksdb --no-default-features
    ```
 
 2. **Check formatting and linting**:
+
    ```bash
    cargo fmt --check
    cargo clippy -- -W clippy::all -W clippy::pedantic -W clippy::nursery -W clippy::cargo
    ```
 
 3. **Run the full test suite**:
+
    ```bash
    ./scripts/test.sh  # Linux/macOS
    .\scripts\build.ps1 -Test  # Windows

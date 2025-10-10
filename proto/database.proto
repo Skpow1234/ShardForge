@@ -1,0 +1,581 @@
+syntax = "proto3";
+
+package shardforge.rpc;
+
+// Core database service
+service DatabaseService {
+  // === Cluster Management ===
+  rpc JoinCluster(JoinClusterRequest) returns (stream JoinClusterResponse);
+  rpc LeaveCluster(LeaveClusterRequest) returns (LeaveClusterResponse);
+  rpc Heartbeat(HeartbeatRequest) returns (HeartbeatResponse);
+  rpc GetClusterTopology(TopologyRequest) returns (TopologyResponse);
+
+  // === Data Operations ===
+  rpc ExecuteQuery(QueryRequest) returns (stream QueryResponse);
+  rpc ExecuteBatch(BatchRequest) returns (BatchResponse);
+  rpc StreamQuery(StreamQueryRequest) returns (stream StreamQueryResponse);
+
+  // === Transaction Management ===
+  rpc BeginTransaction(TransactionRequest) returns (TransactionResponse);
+  rpc PrepareTransaction(PrepareRequest) returns (PrepareResponse);
+  rpc CommitTransaction(CommitRequest) returns (CommitResponse);
+  rpc RollbackTransaction(RollbackRequest) returns (RollbackResponse);
+
+  // === Administrative Operations ===
+  rpc GetClusterStatus(StatusRequest) returns (StatusResponse);
+  rpc GetMetrics(MetricsRequest) returns (stream MetricsResponse);
+  rpc ExecuteAdminCommand(AdminCommandRequest) returns (AdminCommandResponse);
+
+  // === Metadata Operations ===
+  rpc GetSchema(SchemaRequest) returns (SchemaResponse);
+  rpc UpdateSchema(UpdateSchemaRequest) returns (UpdateSchemaResponse);
+  rpc GetShardMap(ShardMapRequest) returns (ShardMapResponse);
+}
+
+// === Query Operations ===
+message QueryRequest {
+  string query_id = 1;
+  string sql = 2;
+  repeated Parameter parameters = 3;
+  QueryOptions options = 4;
+  bool streaming_response = 5;
+}
+
+message QueryResponse {
+  oneof result {
+    ResultSet data = 1;
+    Error error = 2;
+    Progress progress = 3;
+  }
+  bool has_more = 4;
+  string cursor = 5;
+}
+
+message StreamQueryRequest {
+  string query_id = 1;
+  string sql = 2;
+  repeated Parameter parameters = 3;
+  uint32 batch_size = 4;
+}
+
+message StreamQueryResponse {
+  oneof result {
+    ResultSet data = 1;
+    Error error = 2;
+    Progress progress = 3;
+  }
+  bool has_more = 4;
+  string cursor = 5;
+}
+
+message BatchRequest {
+  string batch_id = 1;
+  repeated QueryRequest queries = 2;
+  TransactionOptions transaction_options = 3;
+}
+
+message BatchResponse {
+  string batch_id = 1;
+  repeated QueryResponse results = 2;
+  ExecutionSummary summary = 3;
+}
+
+// === Transaction Management ===
+message TransactionRequest {
+  IsolationLevel isolation_level = 1;
+  uint32 timeout_seconds = 2;
+  bool read_only = 3;
+}
+
+message TransactionResponse {
+  string transaction_id = 1;
+  uint64 start_timestamp = 2;
+}
+
+message PrepareRequest {
+  string transaction_id = 1;
+  repeated WriteOperation operations = 2;
+}
+
+message PrepareResponse {
+  string transaction_id = 1;
+  bool prepared = 2;
+  Error error = 3;
+}
+
+message CommitRequest {
+  string transaction_id = 1;
+  uint64 commit_timestamp = 2;
+}
+
+message CommitResponse {
+  string transaction_id = 1;
+  bool committed = 2;
+  Error error = 3;
+}
+
+message RollbackRequest {
+  string transaction_id = 1;
+  string reason = 2;
+}
+
+message RollbackResponse {
+  string transaction_id = 1;
+  bool rolled_back = 2;
+}
+
+// === Cluster Management ===
+message JoinClusterRequest {
+  string node_id = 1;
+  string address = 2;
+  NodeCapabilities capabilities = 3;
+}
+
+message JoinClusterResponse {
+  oneof response {
+    JoinAccepted accepted = 1;
+    JoinRejected rejected = 2;
+    ClusterUpdate update = 3;
+  }
+}
+
+message JoinAccepted {
+  string cluster_id = 1;
+  ClusterTopology topology = 2;
+  repeated string existing_nodes = 3;
+}
+
+message JoinRejected {
+  string reason = 1;
+  Error error = 2;
+}
+
+message LeaveClusterRequest {
+  string node_id = 1;
+  bool graceful = 2;
+}
+
+message LeaveClusterResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message HeartbeatRequest {
+  string node_id = 1;
+  uint64 timestamp = 2;
+  NodeStatus status = 3;
+}
+
+message HeartbeatResponse {
+  uint64 server_timestamp = 1;
+  ClusterUpdate update = 2;
+}
+
+message TopologyRequest {
+  bool include_stats = 1;
+}
+
+message TopologyResponse {
+  ClusterTopology topology = 1;
+  repeated NodeStats node_stats = 2;
+}
+
+// === Administrative Operations ===
+message StatusRequest {
+  bool include_metrics = 1;
+}
+
+message StatusResponse {
+  ClusterStatus status = 1;
+  repeated NodeStatus node_statuses = 2;
+  SystemMetrics metrics = 3;
+}
+
+message MetricsRequest {
+  repeated string metric_names = 1;
+  uint64 start_time = 2;
+  uint64 end_time = 3;
+}
+
+message MetricsResponse {
+  repeated Metric metrics = 1;
+  uint64 timestamp = 2;
+}
+
+message AdminCommandRequest {
+  string command = 1;
+  repeated string args = 2;
+  map<string, string> options = 3;
+}
+
+message AdminCommandResponse {
+  int32 exit_code = 1;
+  string stdout = 2;
+  string stderr = 3;
+}
+
+// === Schema Operations ===
+message SchemaRequest {
+  string database_name = 1;
+  string schema_name = 2;
+}
+
+message SchemaResponse {
+  Schema schema = 1;
+  repeated Table tables = 2;
+}
+
+message UpdateSchemaRequest {
+  string database_name = 1;
+  SchemaUpdate update = 2;
+}
+
+message UpdateSchemaResponse {
+  bool success = 1;
+  Error error = 2;
+}
+
+message ShardMapRequest {
+  string table_name = 1;
+}
+
+message ShardMapResponse {
+  repeated ShardInfo shards = 1;
+  ShardingStrategy strategy = 2;
+}
+
+// === Core Data Types ===
+message Parameter {
+  string name = 1;
+  Value value = 2;
+  DataType type = 3;
+}
+
+message Value {
+  oneof value {
+    bool bool_val = 1;
+    int32 int32_val = 2;
+    int64 int64_val = 3;
+    float float_val = 4;
+    double double_val = 5;
+    string string_val = 6;
+    bytes bytes_val = 7;
+    Timestamp timestamp_val = 8;
+  }
+  bool is_null = 9;
+}
+
+message ResultSet {
+  repeated Column columns = 1;
+  repeated Row rows = 2;
+  uint64 row_count = 3;
+}
+
+message Column {
+  string name = 1;
+  DataType type = 2;
+  bool nullable = 3;
+}
+
+message Row {
+  repeated Value values = 1;
+}
+
+message WriteOperation {
+  string table_name = 1;
+  OperationType operation_type = 2;
+  map<string, Value> data = 3;
+  string where_clause = 4;
+}
+
+// === Configuration Types ===
+message QueryOptions {
+  uint32 timeout_seconds = 1;
+  uint32 max_rows = 2;
+  bool explain_plan = 3;
+  IsolationLevel isolation_level = 4;
+}
+
+message TransactionOptions {
+  IsolationLevel isolation_level = 1;
+  uint32 timeout_seconds = 2;
+  bool read_only = 3;
+}
+
+// === Cluster Types ===
+message NodeCapabilities {
+  bool can_vote = 1;
+  bool can_replicate = 2;
+  uint64 storage_capacity = 3;
+  repeated string supported_features = 4;
+}
+
+message ClusterTopology {
+  string cluster_id = 1;
+  repeated Node nodes = 2;
+  string leader_node_id = 3;
+}
+
+message Node {
+  string node_id = 1;
+  string address = 2;
+  NodeRole role = 3;
+  NodeStatus status = 4;
+}
+
+message ClusterUpdate {
+  UpdateType type = 1;
+  Node node = 2;
+  string reason = 3;
+}
+
+message NodeStats {
+  string node_id = 1;
+  uint64 cpu_usage_percent = 2;
+  uint64 memory_usage_bytes = 3;
+  uint64 disk_usage_bytes = 4;
+  uint64 network_io_bytes = 5;
+}
+
+message ClusterStatus {
+  HealthStatus health = 1;
+  uint32 total_nodes = 2;
+  uint32 healthy_nodes = 3;
+  string leader_node_id = 4;
+}
+
+message NodeStatus {
+  string node_id = 1;
+  HealthStatus health = 2;
+  uint64 last_seen = 3;
+  string version = 4;
+}
+
+// === Schema Types ===
+message Schema {
+  string name = 1;
+  repeated Table tables = 2;
+  repeated Index indexes = 3;
+}
+
+message Table {
+  string name = 1;
+  repeated ColumnDef columns = 2;
+  repeated Constraint constraints = 3;
+  PartitionInfo partition_info = 4;
+}
+
+message ColumnDef {
+  string name = 1;
+  DataType type = 2;
+  bool nullable = 3;
+  Value default_value = 4;
+}
+
+message Constraint {
+  string name = 1;
+  ConstraintType type = 2;
+  repeated string columns = 3;
+  string expression = 4;
+}
+
+message Index {
+  string name = 1;
+  string table_name = 2;
+  repeated string columns = 3;
+  IndexType type = 4;
+  bool unique = 5;
+}
+
+message PartitionInfo {
+  PartitionType type = 1;
+  repeated string columns = 2;
+  repeated PartitionRange ranges = 3;
+}
+
+message PartitionRange {
+  Value start = 1;
+  Value end = 2;
+  string node_id = 3;
+}
+
+message SchemaUpdate {
+  UpdateOperation operation = 1;
+  Table table = 2;
+  Index index = 3;
+}
+
+// === Shard Types ===
+message ShardInfo {
+  string shard_id = 1;
+  string node_id = 2;
+  KeyRange key_range = 3;
+  ShardStatus status = 4;
+}
+
+message KeyRange {
+  bytes start_key = 1;
+  bytes end_key = 2;
+}
+
+message ShardingStrategy {
+  StrategyType type = 1;
+  uint32 shard_count = 2;
+  repeated string shard_keys = 3;
+}
+
+// === Metrics Types ===
+message SystemMetrics {
+  uint64 timestamp = 1;
+  uint64 total_queries = 2;
+  uint64 active_connections = 3;
+  double average_query_time_ms = 4;
+  uint64 total_storage_bytes = 5;
+}
+
+message Metric {
+  string name = 1;
+  Value value = 2;
+  uint64 timestamp = 3;
+  map<string, string> labels = 4;
+}
+
+message ExecutionSummary {
+  uint32 total_queries = 1;
+  uint32 successful_queries = 2;
+  uint32 failed_queries = 3;
+  double total_execution_time_ms = 4;
+}
+
+message Progress {
+  uint32 completed_operations = 1;
+  uint32 total_operations = 2;
+  string current_operation = 3;
+  double progress_percent = 4;
+}
+
+message Error {
+  ErrorCode code = 1;
+  string message = 2;
+  string details = 3;
+  repeated string stack_trace = 4;
+}
+
+message Timestamp {
+  int64 seconds = 1;
+  int32 nanos = 2;
+}
+
+// === Enums ===
+enum IsolationLevel {
+  READ_UNCOMMITTED = 0;
+  READ_COMMITTED = 1;
+  REPEATABLE_READ = 2;
+  SERIALIZABLE = 3;
+  SNAPSHOT = 4;
+}
+
+enum OperationType {
+  INSERT = 0;
+  UPDATE = 1;
+  DELETE = 2;
+  UPSERT = 3;
+}
+
+enum NodeRole {
+  LEADER = 0;
+  FOLLOWER = 1;
+  CANDIDATE = 2;
+  OBSERVER = 3;
+  WITNESS = 4;
+}
+
+enum HealthStatus {
+  HEALTHY = 0;
+  DEGRADED = 1;
+  UNHEALTHY = 2;
+  UNKNOWN = 3;
+}
+
+enum UpdateType {
+  NODE_JOINED = 0;
+  NODE_LEFT = 1;
+  NODE_FAILED = 2;
+  LEADER_CHANGED = 3;
+  TOPOLOGY_CHANGED = 4;
+}
+
+enum DataType {
+  UNKNOWN = 0;
+  BOOLEAN = 1;
+  INT32 = 2;
+  INT64 = 3;
+  FLOAT = 4;
+  DOUBLE = 5;
+  STRING = 6;
+  BYTES = 7;
+  TIMESTAMP = 8;
+  JSON = 9;
+  UUID = 10;
+}
+
+enum ConstraintType {
+  PRIMARY_KEY = 0;
+  FOREIGN_KEY = 1;
+  UNIQUE = 2;
+  CHECK = 3;
+  NOT_NULL = 4;
+}
+
+enum IndexType {
+  BTREE = 0;
+  HASH = 1;
+  GIN = 2;
+  GIST = 3;
+}
+
+enum PartitionType {
+  RANGE = 0;
+  HASH = 1;
+  LIST = 2;
+}
+
+enum UpdateOperation {
+  CREATE_TABLE = 0;
+  DROP_TABLE = 1;
+  ALTER_TABLE = 2;
+  CREATE_INDEX = 3;
+  DROP_INDEX = 4;
+}
+
+enum StrategyType {
+  HASH_STRATEGY = 0;
+  RANGE_STRATEGY = 1;
+  DIRECTORY_STRATEGY = 2;
+  HYBRID_STRATEGY = 3;
+}
+
+enum ShardStatus {
+  ACTIVE = 0;
+  MIGRATING = 1;
+  SPLITTING = 2;
+  MERGING = 3;
+  OFFLINE = 4;
+}
+
+enum ErrorCode {
+  UNKNOWN_ERROR = 0;
+  INVALID_REQUEST = 1;
+  UNAUTHORIZED = 2;
+  FORBIDDEN = 3;
+  NOT_FOUND = 4;
+  CONFLICT = 5;
+  INTERNAL_ERROR = 6;
+  SERVICE_UNAVAILABLE = 7;
+  TIMEOUT = 8;
+  TRANSACTION_ABORTED = 9;
+  DEADLOCK_DETECTED = 10;
+  CONSTRAINT_VIOLATION = 11;
+  SYNTAX_ERROR = 12;
+  TYPE_ERROR = 13;
+}
