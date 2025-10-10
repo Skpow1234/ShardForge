@@ -205,10 +205,7 @@ pub mod proto {
                 request: QueryRequest,
             ) -> Result<Response<QueryResponse>, Status> {
                 // Stub implementation
-                Ok(Response::new(QueryResponse {
-                    has_more: false,
-                    cursor: "".to_string(),
-                }))
+                Ok(Response::new(QueryResponse { has_more: false, cursor: "".to_string() }))
             }
 
             pub async fn begin_transaction(
@@ -225,19 +222,14 @@ pub mod proto {
                 &mut self,
                 request: CommitRequest,
             ) -> Result<Response<CommitResponse>, Status> {
-                Ok(Response::new(CommitResponse {
-                    success: true,
-                    commit_timestamp: 0,
-                }))
+                Ok(Response::new(CommitResponse { success: true, commit_timestamp: 0 }))
             }
 
             pub async fn rollback_transaction(
                 &mut self,
                 request: RollbackRequest,
             ) -> Result<Response<RollbackResponse>, Status> {
-                Ok(Response::new(RollbackResponse {
-                    success: true,
-                }))
+                Ok(Response::new(RollbackResponse { success: true }))
             }
 
             pub async fn get_cluster_status(
@@ -268,9 +260,7 @@ pub mod proto {
                 &mut self,
                 request: TopologyRequest,
             ) -> Result<Response<TopologyResponse>, Status> {
-                Ok(Response::new(TopologyResponse {
-                    nodes: vec![],
-                }))
+                Ok(Response::new(TopologyResponse { nodes: vec![] }))
             }
         }
     }

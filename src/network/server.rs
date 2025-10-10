@@ -8,8 +8,8 @@ use shardforge_core::{Result, ShardForgeError};
 use tokio::sync::RwLock;
 use tonic::{transport::Server, Request, Response, Status};
 
-use crate::network::NetworkConfig;
 use crate::network::protocol::proto;
+use crate::network::NetworkConfig;
 
 /// gRPC server for ShardForge database
 pub struct GrpcServer {
@@ -30,16 +30,16 @@ impl GrpcServer {
 
     /// Start the gRPC server
     pub async fn start(&self) -> Result<()> {
-        let addr: SocketAddr = self.config.bind_address.parse()
-            .map_err(|e| ShardForgeError::Config { 
-                message: format!("Invalid bind address: {}", e) 
+        let addr: SocketAddr =
+            self.config.bind_address.parse().map_err(|e| ShardForgeError::Config {
+                message: format!("Invalid bind address: {}", e),
             })?;
 
         println!("Starting gRPC server on {}", addr);
 
         // For now, just simulate a server start since we need protoc for full gRPC
         println!("gRPC server simulation started (protoc required for full implementation)");
-        
+
         // Handle shutdown signal if available
         if let Some(_shutdown_rx) = self.shutdown_signal.read().await.as_ref() {
             // In a real implementation, this would wait for the shutdown signal
@@ -75,11 +75,8 @@ impl proto::DatabaseService for DatabaseServiceImpl {
         request: Request<proto::QueryRequest>,
     ) -> std::result::Result<Response<proto::QueryResponse>, Status> {
         let _req = request.into_inner();
-        
-        let response = proto::QueryResponse {
-            has_more: false,
-            cursor: "".to_string(),
-        };
+
+        let response = proto::QueryResponse { has_more: false, cursor: "".to_string() };
 
         Ok(Response::new(response))
     }
@@ -89,7 +86,7 @@ impl proto::DatabaseService for DatabaseServiceImpl {
         request: Request<proto::TransactionRequest>,
     ) -> std::result::Result<Response<proto::TransactionResponse>, Status> {
         let _req = request.into_inner();
-        
+
         let response = proto::TransactionResponse {
             transaction_id: "tx_placeholder".to_string(),
             start_timestamp: 0,
@@ -103,7 +100,7 @@ impl proto::DatabaseService for DatabaseServiceImpl {
         request: Request<proto::StatusRequest>,
     ) -> std::result::Result<Response<proto::StatusResponse>, Status> {
         let _req = request.into_inner();
-        
+
         let response = proto::StatusResponse {
             status: Some(proto::ClusterStatus {
                 health: 0, // Healthy

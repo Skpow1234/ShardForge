@@ -5,8 +5,8 @@ use std::time::Duration;
 use shardforge_core::{NodeId, Result, ShardForgeError};
 use tonic::transport::Channel;
 
-use crate::network::{ConnectionPool, NetworkConfig};
 use crate::network::protocol::proto;
+use crate::network::{ConnectionPool, NetworkConfig};
 
 /// gRPC client for ShardForge database
 pub struct DatabaseClient {
@@ -39,11 +39,8 @@ impl DatabaseClient {
             streaming_response: false,
         };
 
-        let response = self
-            .client
-            .execute_query(request)
-            .await
-            .map_err(|e| ShardForgeError::Network {
+        let response =
+            self.client.execute_query(request).await.map_err(|e| ShardForgeError::Network {
                 message: format!("Query execution failed: {}", e),
             })?;
 
@@ -63,13 +60,13 @@ impl DatabaseClient {
             read_only,
         };
 
-        let response = self
-            .client
-            .begin_transaction(request)
-            .await
-            .map_err(|e| ShardForgeError::Network {
-                message: format!("Transaction begin failed: {}", e),
-            })?;
+        let response =
+            self.client
+                .begin_transaction(request)
+                .await
+                .map_err(|e| ShardForgeError::Network {
+                    message: format!("Transaction begin failed: {}", e),
+                })?;
 
         Ok(response.into_inner())
     }
@@ -80,17 +77,13 @@ impl DatabaseClient {
         transaction_id: String,
         commit_timestamp: u64,
     ) -> Result<proto::CommitResponse> {
-        let request = proto::CommitRequest {
-            transaction_id,
-        };
+        let request = proto::CommitRequest { transaction_id };
 
-        let response = self
-            .client
-            .commit_transaction(request)
-            .await
-            .map_err(|e| ShardForgeError::Network {
+        let response = self.client.commit_transaction(request).await.map_err(|e| {
+            ShardForgeError::Network {
                 message: format!("Transaction commit failed: {}", e),
-            })?;
+            }
+        })?;
 
         Ok(response.into_inner())
     }
@@ -101,32 +94,29 @@ impl DatabaseClient {
         transaction_id: String,
         reason: String,
     ) -> Result<proto::RollbackResponse> {
-        let request = proto::RollbackRequest {
-            transaction_id,
-        };
+        let request = proto::RollbackRequest { transaction_id };
 
-        let response = self
-            .client
-            .rollback_transaction(request)
-            .await
-            .map_err(|e| ShardForgeError::Network {
+        let response = self.client.rollback_transaction(request).await.map_err(|e| {
+            ShardForgeError::Network {
                 message: format!("Transaction rollback failed: {}", e),
-            })?;
+            }
+        })?;
 
         Ok(response.into_inner())
     }
 
     /// Get cluster status
-    pub async fn get_cluster_status(&mut self, include_metrics: bool) -> Result<proto::StatusResponse> {
+    pub async fn get_cluster_status(
+        &mut self,
+        include_metrics: bool,
+    ) -> Result<proto::StatusResponse> {
         let request = proto::StatusRequest { include_metrics };
 
-        let response = self
-            .client
-            .get_cluster_status(request)
-            .await
-            .map_err(|e| ShardForgeError::Network {
+        let response = self.client.get_cluster_status(request).await.map_err(|e| {
+            ShardForgeError::Network {
                 message: format!("Cluster status request failed: {}", e),
-            })?;
+            }
+        })?;
 
         Ok(response.into_inner())
     }
@@ -138,16 +128,10 @@ impl DatabaseClient {
         timestamp: u64,
         status: proto::NodeStatus,
     ) -> Result<proto::HeartbeatResponse> {
-        let request = proto::HeartbeatRequest {
-            node_id,
-            status,
-        };
+        let request = proto::HeartbeatRequest { node_id, status };
 
-        let response = self
-            .client
-            .heartbeat(request)
-            .await
-            .map_err(|e| ShardForgeError::Network {
+        let response =
+            self.client.heartbeat(request).await.map_err(|e| ShardForgeError::Network {
                 message: format!("Heartbeat failed: {}", e),
             })?;
 
@@ -155,16 +139,17 @@ impl DatabaseClient {
     }
 
     /// Get cluster topology
-    pub async fn get_cluster_topology(&mut self, include_stats: bool) -> Result<proto::TopologyResponse> {
+    pub async fn get_cluster_topology(
+        &mut self,
+        include_stats: bool,
+    ) -> Result<proto::TopologyResponse> {
         let request = proto::TopologyRequest { include_stats };
 
-        let response = self
-            .client
-            .get_cluster_topology(request)
-            .await
-            .map_err(|e| ShardForgeError::Network {
+        let response = self.client.get_cluster_topology(request).await.map_err(|e| {
+            ShardForgeError::Network {
                 message: format!("Topology request failed: {}", e),
-            })?;
+            }
+        })?;
 
         Ok(response.into_inner())
     }

@@ -1,5 +1,5 @@
 # ShardForge Development Commands
-.PHONY: help format check test clean
+.PHONY: help format check test clean docker-build docker-up docker-down docker-dev docker-perf docker-cluster
 
 help: ## Show this help message
 	@echo "ShardForge Development Commands:"
@@ -55,6 +55,54 @@ audit: ## Run security audit
 coverage: ## Generate coverage report
 	@echo "📊 Generating coverage report..."
 	cargo tarpaulin --workspace --out Html --output-dir coverage
+
+# Docker commands
+docker-build: ## Build Docker image
+	@echo "🐳 Building Docker image..."
+	docker build -t shardforge:distroless .
+
+docker-up: ## Start ShardForge in production mode
+	@echo "🚀 Starting ShardForge..."
+	docker-compose --profile production up -d
+
+docker-down: ## Stop all ShardForge services
+	@echo "🛑 Stopping ShardForge..."
+	docker-compose down
+
+docker-dev: ## Start ShardForge in development mode
+	@echo "🔧 Starting ShardForge in development mode..."
+	docker-compose --profile dev up -d
+
+docker-perf: ## Start ShardForge in performance testing mode
+	@echo "⚡ Starting ShardForge in performance mode..."
+	docker-compose --profile perf up -d
+
+docker-cluster: ## Start ShardForge cluster (3 nodes)
+	@echo "🌐 Starting ShardForge cluster..."
+	docker-compose --profile cluster up -d
+
+docker-monitoring: ## Start monitoring stack (Prometheus + Grafana)
+	@echo "📊 Starting monitoring stack..."
+	docker-compose --profile monitoring up -d
+
+docker-logs: ## Show logs for all services
+	@echo "📋 Showing logs..."
+	docker-compose logs -f
+
+docker-clean: ## Clean up Docker resources
+	@echo "🧹 Cleaning Docker resources..."
+	docker-compose down -v
+	docker system prune -f
+
+docker-scan: ## Scan Docker image for vulnerabilities
+	@echo "🔍 Scanning Docker image for vulnerabilities..."
+	docker scout cves shardforge:distroless
+
+
+docker-secure: ## Build and scan Docker image for security
+	@echo "🔒 Building and scanning secure Docker image..."
+	make docker-build
+	make docker-scan
 
 # Windows PowerShell compatibility
 # To use on Windows, you can run: make check

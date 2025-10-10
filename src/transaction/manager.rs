@@ -6,7 +6,7 @@ use std::time::{Duration, Instant};
 
 use shardforge_core::{Result, ShardForgeError, Timestamp, TransactionId};
 use shardforge_storage::MVCCStorage;
-use tokio::sync::{RwLock, Mutex};
+use tokio::sync::{Mutex, RwLock};
 
 /// Transaction state
 #[derive(Debug, Clone, PartialEq)]
@@ -187,57 +187,63 @@ impl LockManager {
         lock_type: LockType,
     ) -> Result<()> {
         let mut locks = self.locks.write().await;
-        
+
         if let Some(lock_info) = locks.get_mut(&resource) {
             // Resource is already locked
             if lock_info.holder == transaction_id {
                 // We already hold the lock
                 return Ok(());
             }
-            
+
             if lock_type == LockType::Shared && lock_info.lock_type == LockType::Shared {
                 // Compatible shared locks - upgrade holder to include this transaction
                 return Ok(());
             }
-            
+
             // Incompatible lock - add to waiters and detect deadlock
             lock_info.waiters.push(transaction_id);
-            
+
             // Add to wait-for graph
             let mut wait_for = self.wait_for.write().await;
-            wait_for.entry(transaction_id).or_insert_with(HashSet::new).insert(lock_info.holder);
-            
+            wait_for
+                .entry(transaction_id)
+                .or_insert_with(HashSet::new)
+                .insert(lock_info.holder);
+
             // Check for deadlock
             if self.has_deadlock(&wait_for, transaction_id) {
                 // Remove from waiters and wait-for graph
                 lock_info.waiters.retain(|&id| id != transaction_id);
                 wait_for.get_mut(&transaction_id).unwrap().remove(&lock_info.holder);
-                
+
                 return Err(ShardForgeError::Transaction {
                     message: "Deadlock detected".to_string(),
                 });
             }
-            
+
             // Wait for lock (in real implementation, this would be a proper wait/notify mechanism)
             return Err(ShardForgeError::Transaction {
                 message: "Resource is locked, would need to wait".to_string(),
             });
         } else {
             // Resource is not locked - acquire it
-            locks.insert(resource, LockInfo {
-                holder: transaction_id,
-                lock_type,
-                waiters: Vec::new(),
-            });
+            locks.insert(
+                resource,
+                LockInfo {
+                    holder: transaction_id,
+                    lock_type,
+                    waiters: Vec::new(),
+                },
+            );
         }
-        
+
         Ok(())
     }
 
     /// Release a lock on a resource
     pub async fn release_lock(&self, transaction_id: TransactionId, resource: &str) -> Result<()> {
         let mut locks = self.locks.write().await;
-        
+
         if let Some(lock_info) = locks.get(resource) {
             if lock_info.holder == transaction_id {
                 if lock_info.waiters.is_empty() {
@@ -250,7 +256,7 @@ impl LockManager {
                     new_lock_info.holder = next_holder;
                     new_lock_info.waiters.remove(0);
                     locks.insert(resource.to_string(), new_lock_info);
-                    
+
                     // Remove from wait-for graph
                     let mut wait_for = self.wait_for.write().await;
                     if let Some(waiting_for) = wait_for.get_mut(&next_holder) {
@@ -262,7 +268,7 @@ impl LockManager {
                 }
             }
         }
-        
+
         Ok(())
     }
 
@@ -271,7 +277,7 @@ impl LockManager {
         let mut locks = self.locks.write().await;
         let mut resources_to_remove = Vec::new();
         let mut resources_to_update = Vec::new();
-        
+
         for (resource, lock_info) in locks.iter() {
             if lock_info.holder == transaction_id {
                 if lock_info.waiters.is_empty() {
@@ -281,31 +287,35 @@ impl LockManager {
                 }
             }
         }
-        
+
         // Remove locks with no waiters
         for resource in resources_to_remove {
             locks.remove(&resource);
         }
-        
+
         // Update locks with waiters
         for (resource, mut lock_info) in resources_to_update {
             let next_holder = lock_info.waiters.remove(0);
             lock_info.holder = next_holder;
             locks.insert(resource, lock_info);
         }
-        
+
         // Clean up wait-for graph
         let mut wait_for = self.wait_for.write().await;
         wait_for.retain(|_, waiting_for| {
             waiting_for.remove(&transaction_id);
             !waiting_for.is_empty()
         });
-        
+
         Ok(())
     }
 
     /// Check for deadlocks using cycle detection
-    fn has_deadlock(&self, wait_for: &HashMap<TransactionId, HashSet<TransactionId>>, start: TransactionId) -> bool {
+    fn has_deadlock(
+        &self,
+        wait_for: &HashMap<TransactionId, HashSet<TransactionId>>,
+        start: TransactionId,
+    ) -> bool {
         let mut visited = HashSet::new();
         let mut path = HashSet::new();
         self.dfs_cycle_detection(wait_for, start, &mut visited, &mut path)
@@ -322,14 +332,14 @@ impl LockManager {
         if path.contains(&current) {
             return true; // Cycle found
         }
-        
+
         if visited.contains(&current) {
             return false; // Already explored
         }
-        
+
         visited.insert(current);
         path.insert(current);
-        
+
         if let Some(dependencies) = wait_for.get(&current) {
             for &dependency in dependencies {
                 if self.dfs_cycle_detection(wait_for, dependency, visited, path) {
@@ -337,7 +347,7 @@ impl LockManager {
                 }
             }
         }
-        
+
         path.remove(&current);
         false
     }
@@ -366,12 +376,12 @@ impl TransactionManager {
     pub async fn begin_transaction(&self, config: TransactionConfig) -> Result<TransactionId> {
         let transaction_id = TransactionId::new();
         let start_timestamp = self.mvcc_storage.begin_transaction(transaction_id).await;
-        
+
         let transaction = Transaction::new(transaction_id, start_timestamp, config);
-        
+
         let mut transactions = self.transactions.write().await;
         transactions.insert(transaction_id, Arc::new(Mutex::new(transaction)));
-        
+
         Ok(transaction_id)
     }
 
@@ -379,19 +389,22 @@ impl TransactionManager {
     pub async fn commit_transaction(&self, transaction_id: TransactionId) -> Result<()> {
         let transaction_arc = {
             let transactions = self.transactions.read().await;
-            transactions.get(&transaction_id).cloned()
-                .ok_or_else(|| ShardForgeError::Transaction {
+            transactions.get(&transaction_id).cloned().ok_or_else(|| {
+                ShardForgeError::Transaction {
                     message: format!("Transaction {:?} not found", transaction_id),
-                })?
+                }
+            })?
         };
 
         let mut transaction = transaction_arc.lock().await;
-        
+
         // Check transaction state
         if !transaction.can_proceed() {
             return Err(ShardForgeError::Transaction {
-                message: format!("Transaction {:?} cannot be committed in state {:?}", 
-                    transaction_id, transaction.state),
+                message: format!(
+                    "Transaction {:?} cannot be committed in state {:?}",
+                    transaction_id, transaction.state
+                ),
             });
         }
 
@@ -408,12 +421,14 @@ impl TransactionManager {
 
         // Apply writes to MVCC storage
         for (key, write_intent) in &transaction.write_set {
-            self.mvcc_storage.write(
-                shardforge_core::Key::new(key.as_bytes()),
-                write_intent.value.as_ref().map(|v| shardforge_core::Value::new(v)),
-                transaction_id,
-                write_intent.timestamp,
-            ).await?;
+            self.mvcc_storage
+                .write(
+                    shardforge_core::Key::new(key.as_bytes()),
+                    write_intent.value.as_ref().map(|v| shardforge_core::Value::new(v)),
+                    transaction_id,
+                    write_intent.timestamp,
+                )
+                .await?;
         }
 
         // Commit in MVCC storage
@@ -437,14 +452,15 @@ impl TransactionManager {
     pub async fn rollback_transaction(&self, transaction_id: TransactionId) -> Result<()> {
         let transaction_arc = {
             let transactions = self.transactions.read().await;
-            transactions.get(&transaction_id).cloned()
-                .ok_or_else(|| ShardForgeError::Transaction {
+            transactions.get(&transaction_id).cloned().ok_or_else(|| {
+                ShardForgeError::Transaction {
                     message: format!("Transaction {:?} not found", transaction_id),
-                })?
+                }
+            })?
         };
 
         let mut transaction = transaction_arc.lock().await;
-        
+
         // Change state to rolling back
         transaction.state = TransactionState::RollingBack;
 
@@ -466,7 +482,10 @@ impl TransactionManager {
     }
 
     /// Get transaction state
-    pub async fn get_transaction_state(&self, transaction_id: TransactionId) -> Option<TransactionState> {
+    pub async fn get_transaction_state(
+        &self,
+        transaction_id: TransactionId,
+    ) -> Option<TransactionState> {
         let transactions = self.transactions.read().await;
         if let Some(transaction_arc) = transactions.get(&transaction_id) {
             let transaction = transaction_arc.lock().await;
@@ -491,23 +510,27 @@ impl TransactionManager {
     pub async fn cleanup_timed_out_transactions(&self) -> Result<Vec<TransactionId>> {
         let mut timed_out = Vec::new();
         let transactions = self.transactions.read().await;
-        
+
         for (&transaction_id, transaction_arc) in transactions.iter() {
             let transaction = transaction_arc.lock().await;
             if transaction.is_timed_out() && transaction.can_proceed() {
                 timed_out.push(transaction_id);
             }
         }
-        
+
         drop(transactions);
-        
+
         // Rollback timed out transactions
         for transaction_id in &timed_out {
             if let Err(e) = self.rollback_transaction(*transaction_id).await {
-                tracing::error!("Failed to rollback timed out transaction {:?}: {}", transaction_id, e);
+                tracing::error!(
+                    "Failed to rollback timed out transaction {:?}: {}",
+                    transaction_id,
+                    e
+                );
             }
         }
-        
+
         Ok(timed_out)
     }
 }
@@ -527,11 +550,11 @@ mod tests {
     async fn test_transaction_lifecycle() {
         let mvcc_storage = Arc::new(MVCCStorage::new());
         let tx_manager = TransactionManager::new(mvcc_storage);
-        
+
         // Begin transaction
         let tx_id = tx_manager.begin_transaction(TransactionConfig::default()).await.unwrap();
         assert!(tx_manager.is_transaction_active(tx_id).await);
-        
+
         // Commit transaction
         tx_manager.commit_transaction(tx_id).await.unwrap();
         assert!(!tx_manager.is_transaction_active(tx_id).await);
@@ -541,11 +564,11 @@ mod tests {
     async fn test_transaction_rollback() {
         let mvcc_storage = Arc::new(MVCCStorage::new());
         let tx_manager = TransactionManager::new(mvcc_storage);
-        
+
         // Begin transaction
         let tx_id = tx_manager.begin_transaction(TransactionConfig::default()).await.unwrap();
         assert!(tx_manager.is_transaction_active(tx_id).await);
-        
+
         // Rollback transaction
         tx_manager.rollback_transaction(tx_id).await.unwrap();
         assert!(!tx_manager.is_transaction_active(tx_id).await);
@@ -556,14 +579,19 @@ mod tests {
         let lock_manager = LockManager::new();
         let tx1 = TransactionId::new();
         let tx2 = TransactionId::new();
-        
+
         // tx1 acquires exclusive lock
-        lock_manager.acquire_lock(tx1, "resource1".to_string(), LockType::Exclusive).await.unwrap();
-        
+        lock_manager
+            .acquire_lock(tx1, "resource1".to_string(), LockType::Exclusive)
+            .await
+            .unwrap();
+
         // tx2 tries to acquire exclusive lock on same resource - should fail
-        let result = lock_manager.acquire_lock(tx2, "resource1".to_string(), LockType::Exclusive).await;
+        let result = lock_manager
+            .acquire_lock(tx2, "resource1".to_string(), LockType::Exclusive)
+            .await;
         assert!(result.is_err());
-        
+
         // Release lock
         lock_manager.release_lock(tx1, "resource1").await.unwrap();
     }
@@ -573,13 +601,19 @@ mod tests {
         let lock_manager = LockManager::new();
         let tx1 = TransactionId::new();
         let tx2 = TransactionId::new();
-        
+
         // tx1 acquires shared lock
-        lock_manager.acquire_lock(tx1, "resource1".to_string(), LockType::Shared).await.unwrap();
-        
+        lock_manager
+            .acquire_lock(tx1, "resource1".to_string(), LockType::Shared)
+            .await
+            .unwrap();
+
         // tx2 acquires shared lock on same resource - should succeed
-        lock_manager.acquire_lock(tx2, "resource1".to_string(), LockType::Shared).await.unwrap();
-        
+        lock_manager
+            .acquire_lock(tx2, "resource1".to_string(), LockType::Shared)
+            .await
+            .unwrap();
+
         // Release locks
         lock_manager.release_lock(tx1, "resource1").await.unwrap();
         lock_manager.release_lock(tx2, "resource1").await.unwrap();
@@ -589,18 +623,18 @@ mod tests {
     async fn test_transaction_timeout() {
         let mvcc_storage = Arc::new(MVCCStorage::new());
         let tx_manager = TransactionManager::new(mvcc_storage);
-        
+
         let config = TransactionConfig {
             isolation_level: IsolationLevel::ReadCommitted,
             timeout: Duration::from_millis(1), // Very short timeout
             read_only: false,
         };
-        
+
         let tx_id = tx_manager.begin_transaction(config).await.unwrap();
-        
+
         // Wait for timeout
         tokio::time::sleep(Duration::from_millis(10)).await;
-        
+
         // Commit should fail due to timeout
         let result = tx_manager.commit_transaction(tx_id).await;
         assert!(result.is_err());

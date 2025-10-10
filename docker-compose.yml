@@ -1,25 +1,30 @@
+# ShardForge - Complete Docker Compose Configuration
+# Supports development, production, and performance testing
+
 services:
+  # Main ShardForge database service
   shardforge:
     build:
       context: .
       dockerfile: Dockerfile
-      target: builder
       cache_from:
-        - shardforge:builder
+        - shardforge:latest
+    image: shardforge:distroless
     ports:
-      - "5432:5432"
-      - "9090:9090"
+      - "5432:5432"  # PostgreSQL protocol
+      - "9090:9090"  # gRPC API
     volumes:
-      - ./data:/data/shardforge
-      - ./shardforge.toml:/etc/shardforge/config.toml
+      - shardforge-data:/data/shardforge
+      - ./shardforge.toml:/etc/shardforge/config.toml:ro
     environment:
       - RUST_LOG=info
       - RUST_BACKTRACE=1
+      - SHARDFORGE_NODE_ID=node-1
     networks:
       - shardforge-net
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "shardforge", "--version"]
+      test: ["CMD", "/shardforge", "--version"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -32,26 +37,167 @@ services:
         reservations:
           memory: 512M
           cpus: '0.5'
+    profiles: ["default", "production"]
 
-  # For future multi-node setup
-  # shardforge-node2:
-  #   build: .
-  #   ports:
-  #     - "5433:5432"
-  #     - "9091:9090"
-  #   volumes:
-  #     - ./data/node2:/data/shardforge
-  #   environment:
-  #     - RUST_LOG=info
-  #     - SHARDFORGE_NODE_ID=node-2
-  #   networks:
-  #     - shardforge-net
-  #   depends_on:
-  #     - shardforge
+  # Development mode with hot reload
+  shardforge-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder
+    ports:
+      - "5433:5432"
+      - "9091:9090"
+    volumes:
+      - .:/usr/src/shardforge
+      - shardforge-dev-data:/data/shardforge
+    environment:
+      - RUST_LOG=debug
+      - RUST_BACKTRACE=full
+      - SHARDFORGE_NODE_ID=dev-node
+    networks:
+      - shardforge-net
+    command: ["cargo", "run", "--bin", "shardforge", "--", "start"]
+    profiles: ["dev"]
+
+  # Performance testing with monitoring
+  shardforge-perf:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "5434:5432"
+      - "9092:9090"
+    volumes:
+      - shardforge-perf-data:/data/shardforge
+    environment:
+      - RUST_LOG=warn
+      - RUST_BACKTRACE=1
+      - SHARDFORGE_NODE_ID=perf-node
+    networks:
+      - shardforge-net
+    healthcheck:
+      test: ["CMD", "/shardforge", "--version"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: '2.0'
+        reservations:
+          memory: 1G
+          cpus: '1.0'
+    profiles: ["perf"]
+
+  # Multi-node cluster setup
+  shardforge-node2:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "5435:5432"
+      - "9093:9090"
+    volumes:
+      - shardforge-node2-data:/data/shardforge
+    environment:
+      - RUST_LOG=info
+      - RUST_BACKTRACE=1
+      - SHARDFORGE_NODE_ID=node-2
+      - SHARDFORGE_CLUSTER_SEEDS=shardforge:9090
+    networks:
+      - shardforge-net
+    depends_on:
+      - shardforge
+    healthcheck:
+      test: ["CMD", "/shardforge", "--version"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+        reservations:
+          memory: 512M
+          cpus: '0.5'
+    profiles: ["cluster"]
+
+  shardforge-node3:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "5436:5432"
+      - "9094:9090"
+    volumes:
+      - shardforge-node3-data:/data/shardforge
+    environment:
+      - RUST_LOG=info
+      - RUST_BACKTRACE=1
+      - SHARDFORGE_NODE_ID=node-3
+      - SHARDFORGE_CLUSTER_SEEDS=shardforge:9090,shardforge-node2:9090
+    networks:
+      - shardforge-net
+    depends_on:
+      - shardforge
+      - shardforge-node2
+    healthcheck:
+      test: ["CMD", "/shardforge", "--version"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+        reservations:
+          memory: 512M
+          cpus: '0.5'
+    profiles: ["cluster"]
+
+  # Monitoring and observability
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9095:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    networks:
+      - shardforge-net
+    profiles: ["monitoring"]
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    networks:
+      - shardforge-net
+    depends_on:
+      - prometheus
+    profiles: ["monitoring"]
 
 networks:
   shardforge-net:
     driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
 
 volumes:
   shardforge-data:
+  shardforge-dev-data:
+  shardforge-perf-data:
+  shardforge-node2-data:
+  shardforge-node3-data:
+  grafana-data:

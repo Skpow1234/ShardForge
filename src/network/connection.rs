@@ -42,12 +42,9 @@ impl ConnectionPool {
             .timeout(Duration::from_secs(self.config.connection_timeout_sec as u64))
             .keep_alive_timeout(Duration::from_secs(self.config.keep_alive_interval_sec as u64));
 
-        let channel = endpoint
-            .connect()
-            .await
-            .map_err(|e| ShardForgeError::Network {
-                message: format!("Failed to connect to {}: {}", address, e),
-            })?;
+        let channel = endpoint.connect().await.map_err(|e| ShardForgeError::Network {
+            message: format!("Failed to connect to {}: {}", address, e),
+        })?;
 
         // Store the connection
         {
@@ -116,7 +113,7 @@ impl LoadBalancer {
         let mut current_index = self.current_index.write().await;
         let node = nodes[*current_index].clone();
         *current_index = (*current_index + 1) % nodes.len();
-        
+
         Some(node)
     }
 

@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 
 use shardforge_core::{Key, Result, ShardForgeError, Value};
-use shardforge_storage::{StorageEngine, MVCCStorage};
+use shardforge_storage::{MVCCStorage, StorageEngine};
 
 use crate::sql::ast::*;
 
@@ -68,9 +68,7 @@ pub struct QueryResult {
 impl SchemaCatalog {
     /// Create a new schema catalog
     pub fn new() -> Self {
-        Self {
-            tables: HashMap::new(),
-        }
+        Self { tables: HashMap::new() }
     }
 
     /// Add a table schema
@@ -131,13 +129,17 @@ impl QueryExecutor {
         }
 
         // Convert AST column definitions to schema
-        let columns = stmt.columns.into_iter().map(|col| ColumnSchema {
-            name: col.name,
-            data_type: col.data_type,
-            nullable: col.nullable,
-            default_value: col.default,
-            auto_increment: col.auto_increment,
-        }).collect();
+        let columns = stmt
+            .columns
+            .into_iter()
+            .map(|col| ColumnSchema {
+                name: col.name,
+                data_type: col.data_type,
+                nullable: col.nullable,
+                default_value: col.default,
+                auto_increment: col.auto_increment,
+            })
+            .collect();
 
         // Create table schema
         let table_schema = TableSchema {
@@ -196,10 +198,11 @@ impl QueryExecutor {
     /// Execute INSERT statement
     async fn execute_insert(&mut self, stmt: InsertStatement) -> Result<QueryResult> {
         // Get table schema
-        let table_schema = self.context.catalog.get_table(&stmt.table_name)
-            .ok_or_else(|| ShardForgeError::Query {
+        let table_schema = self.context.catalog.get_table(&stmt.table_name).ok_or_else(|| {
+            ShardForgeError::Query {
                 message: format!("Table '{}' does not exist", stmt.table_name),
-            })?;
+            }
+        })?;
 
         let mut affected_rows = 0;
 
@@ -225,7 +228,7 @@ impl QueryExecutor {
 
             // Generate primary key (simplified - use row index for now)
             let primary_key = Key::new(format!("{}:{}", stmt.table_name, row_index).as_bytes());
-            
+
             // Convert expressions to values (simplified evaluation)
             let mut row_data = Vec::new();
             for expr in values {
@@ -257,10 +260,13 @@ impl QueryExecutor {
         })?;
 
         // Get table schema
-        let table_schema = self.context.catalog.get_table(&table_name)
-            .ok_or_else(|| ShardForgeError::Query {
-                message: format!("Table '{}' does not exist", table_name),
-            })?;
+        let table_schema =
+            self.context
+                .catalog
+                .get_table(&table_name)
+                .ok_or_else(|| ShardForgeError::Query {
+                    message: format!("Table '{}' does not exist", table_name),
+                })?;
 
         // For point queries, we need a WHERE clause with equality condition
         let where_clause = stmt.where_clause.ok_or_else(|| ShardForgeError::Query {
@@ -274,9 +280,10 @@ impl QueryExecutor {
         if let Some(storage_value) = self.context.storage.get(&key).await? {
             // Deserialize row data
             let row_data = self.deserialize_row(storage_value.as_ref())?;
-            
+
             // Apply column selection
-            let (selected_columns, selected_data) = self.apply_column_selection(&stmt.columns, table_schema, &row_data)?;
+            let (selected_columns, selected_data) =
+                self.apply_column_selection(&stmt.columns, table_schema, &row_data)?;
 
             Ok(QueryResult {
                 columns: selected_columns,
@@ -336,13 +343,13 @@ impl QueryExecutor {
         // Simple serialization - concatenate lengths and data
         let mut result = Vec::new();
         result.extend_from_slice(&(row_data.len() as u32).to_le_bytes());
-        
+
         for value in row_data {
             let data = value.as_ref();
             result.extend_from_slice(&(data.len() as u32).to_le_bytes());
             result.extend_from_slice(data);
         }
-        
+
         Ok(result)
     }
 
@@ -350,17 +357,17 @@ impl QueryExecutor {
     fn deserialize_row(&self, data: &[u8]) -> Result<Vec<Value>> {
         let mut offset = 0;
         let mut result = Vec::new();
-        
+
         // Read number of columns
         if data.len() < 4 {
             return Err(ShardForgeError::Query {
                 message: "Invalid row data format".to_string(),
             });
         }
-        
+
         let column_count = u32::from_le_bytes([data[0], data[1], data[2], data[3]]) as usize;
         offset += 4;
-        
+
         // Read each column value
         for _ in 0..column_count {
             if offset + 4 > data.len() {
@@ -368,23 +375,26 @@ impl QueryExecutor {
                     message: "Invalid row data format".to_string(),
                 });
             }
-            
+
             let value_len = u32::from_le_bytes([
-                data[offset], data[offset + 1], data[offset + 2], data[offset + 3]
+                data[offset],
+                data[offset + 1],
+                data[offset + 2],
+                data[offset + 3],
             ]) as usize;
             offset += 4;
-            
+
             if offset + value_len > data.len() {
                 return Err(ShardForgeError::Query {
                     message: "Invalid row data format".to_string(),
                 });
             }
-            
+
             let value_data = &data[offset..offset + value_len];
             result.push(Value::new(value_data));
             offset += value_len;
         }
-        
+
         Ok(result)
     }
 
@@ -414,7 +424,9 @@ impl QueryExecutor {
                 SelectItem::Expression { expr, alias } => {
                     // For now, only support column references
                     if let Expression::Column(column_name) = expr {
-                        let column_index = table_schema.columns.iter()
+                        let column_index = table_schema
+                            .columns
+                            .iter()
                             .position(|c| c.name == *column_name)
                             .ok_or_else(|| ShardForgeError::Query {
                                 message: format!("Column '{}' not found", column_name),
@@ -422,7 +434,7 @@ impl QueryExecutor {
 
                         let display_name = alias.as_ref().unwrap_or(column_name).clone();
                         selected_columns.push(display_name);
-                        
+
                         if column_index < row_data.len() {
                             selected_data.push(row_data[column_index].clone());
                         } else {
@@ -488,15 +500,11 @@ mod tests {
         let storage = Box::new(MemoryEngine::new(&Default::default()).await.unwrap());
         let mvcc = MVCCStorage::new();
         let catalog = SchemaCatalog::new();
-        
-        let context = ExecutionContext {
-            storage,
-            mvcc,
-            catalog,
-        };
-        
+
+        let context = ExecutionContext { storage, mvcc, catalog };
+
         let mut executor = QueryExecutor::new(context);
-        
+
         let stmt = CreateTableStatement {
             if_not_exists: false,
             name: "users".to_string(),
@@ -518,10 +526,10 @@ mod tests {
             ],
             constraints: vec![],
         };
-        
+
         let result = executor.execute(Statement::CreateTable(stmt)).await.unwrap();
         assert_eq!(result.affected_rows, 1);
-        
+
         // Check that table was added to catalog
         assert!(executor.context.catalog.get_table("users").is_some());
     }
@@ -531,7 +539,7 @@ mod tests {
         let storage = Box::new(MemoryEngine::new(&Default::default()).await.unwrap());
         let mvcc = MVCCStorage::new();
         let mut catalog = SchemaCatalog::new();
-        
+
         // Add table schema
         let table_schema = TableSchema {
             name: "users".to_string(),
@@ -555,15 +563,11 @@ mod tests {
             indexes: vec![],
         };
         catalog.add_table(table_schema);
-        
-        let context = ExecutionContext {
-            storage,
-            mvcc,
-            catalog,
-        };
-        
+
+        let context = ExecutionContext { storage, mvcc, catalog };
+
         let mut executor = QueryExecutor::new(context);
-        
+
         // Insert a row
         let insert_stmt = InsertStatement {
             table_name: "users".to_string(),
@@ -573,10 +577,10 @@ mod tests {
                 Expression::Literal(Literal::String("Alice".to_string())),
             ]],
         };
-        
+
         let result = executor.execute(Statement::Insert(insert_stmt)).await.unwrap();
         assert_eq!(result.affected_rows, 1);
-        
+
         // Select the row back
         let select_stmt = SelectStatement {
             distinct: false,
@@ -593,7 +597,7 @@ mod tests {
             limit: None,
             offset: None,
         };
-        
+
         let result = executor.execute(Statement::Select(select_stmt)).await.unwrap();
         assert_eq!(result.affected_rows, 1);
         assert_eq!(result.columns.len(), 2);

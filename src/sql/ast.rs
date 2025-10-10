@@ -12,13 +12,13 @@ pub enum Statement {
     AlterTable(AlterTableStatement),
     CreateIndex(CreateIndexStatement),
     DropIndex(DropIndexStatement),
-    
+
     /// Data Manipulation Language
     Insert(InsertStatement),
     Update(UpdateStatement),
     Delete(DeleteStatement),
     Select(SelectStatement),
-    
+
     /// Transaction Control
     Begin(BeginStatement),
     Commit(CommitStatement),
@@ -53,10 +53,19 @@ pub struct AlterTableStatement {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum AlterTableAction {
     AddColumn(ColumnDef),
-    DropColumn { name: String, if_exists: bool },
-    AlterColumn { name: String, action: AlterColumnAction },
+    DropColumn {
+        name: String,
+        if_exists: bool,
+    },
+    AlterColumn {
+        name: String,
+        action: AlterColumnAction,
+    },
     AddConstraint(TableConstraint),
-    DropConstraint { name: String, if_exists: bool },
+    DropConstraint {
+        name: String,
+        if_exists: bool,
+    },
 }
 
 /// ALTER COLUMN actions
@@ -173,16 +182,22 @@ pub enum DataType {
 /// Table constraints
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum TableConstraint {
-    PrimaryKey { columns: Vec<String> },
-    ForeignKey { 
-        columns: Vec<String>, 
-        referenced_table: String, 
+    PrimaryKey {
+        columns: Vec<String>,
+    },
+    ForeignKey {
+        columns: Vec<String>,
+        referenced_table: String,
         referenced_columns: Vec<String>,
         on_delete: Option<ReferentialAction>,
         on_update: Option<ReferentialAction>,
     },
-    Unique { columns: Vec<String> },
-    Check { expression: Expression },
+    Unique {
+        columns: Vec<String>,
+    },
+    Check {
+        expression: Expression,
+    },
 }
 
 /// Referential actions
@@ -215,7 +230,10 @@ pub struct Assignment {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum SelectItem {
     Wildcard,
-    Expression { expr: Expression, alias: Option<String> },
+    Expression {
+        expr: Expression,
+        alias: Option<String>,
+    },
 }
 
 /// ORDER BY item
@@ -260,10 +278,7 @@ pub enum Expression {
         expr: Box<Expression>,
     },
     /// Function calls
-    Function {
-        name: String,
-        args: Vec<Expression>,
-    },
+    Function { name: String, args: Vec<Expression> },
     /// CASE expression
     Case {
         when_clauses: Vec<WhenClause>,
@@ -309,7 +324,7 @@ pub enum BinaryOperator {
     Multiply,
     Divide,
     Modulo,
-    
+
     // Comparison
     Equal,
     NotEqual,
@@ -317,17 +332,17 @@ pub enum BinaryOperator {
     LessThanOrEqual,
     GreaterThan,
     GreaterThanOrEqual,
-    
+
     // Logical
     And,
     Or,
-    
+
     // String
     Like,
     NotLike,
     ILike,
     NotILike,
-    
+
     // Pattern matching
     Regex,
     NotRegex,
@@ -352,14 +367,21 @@ impl Statement {
     /// Get the type of statement for execution planning
     pub fn statement_type(&self) -> StatementType {
         match self {
-            Statement::CreateTable(_) | Statement::DropTable(_) | Statement::AlterTable(_) 
-            | Statement::CreateIndex(_) | Statement::DropIndex(_) => StatementType::DDL,
-            
-            Statement::Insert(_) | Statement::Update(_) | Statement::Delete(_) => StatementType::DML,
-            
+            Statement::CreateTable(_)
+            | Statement::DropTable(_)
+            | Statement::AlterTable(_)
+            | Statement::CreateIndex(_)
+            | Statement::DropIndex(_) => StatementType::DDL,
+
+            Statement::Insert(_) | Statement::Update(_) | Statement::Delete(_) => {
+                StatementType::DML
+            }
+
             Statement::Select(_) => StatementType::Query,
-            
-            Statement::Begin(_) | Statement::Commit(_) | Statement::Rollback(_) => StatementType::Transaction,
+
+            Statement::Begin(_) | Statement::Commit(_) | Statement::Rollback(_) => {
+                StatementType::Transaction
+            }
         }
     }
 }
@@ -367,33 +389,34 @@ impl Statement {
 /// Statement classification
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum StatementType {
-    DDL,     // Data Definition Language
-    DML,     // Data Manipulation Language
-    Query,   // SELECT statements
+    DDL,         // Data Definition Language
+    DML,         // Data Manipulation Language
+    Query,       // SELECT statements
     Transaction, // Transaction control
 }
 
 impl DataType {
     /// Check if the data type is numeric
     pub fn is_numeric(&self) -> bool {
-        matches!(self, 
-            DataType::SmallInt | DataType::Integer | DataType::BigInt |
-            DataType::Real | DataType::Double | DataType::Decimal { .. }
+        matches!(
+            self,
+            DataType::SmallInt
+                | DataType::Integer
+                | DataType::BigInt
+                | DataType::Real
+                | DataType::Double
+                | DataType::Decimal { .. }
         )
     }
 
     /// Check if the data type is string-like
     pub fn is_string(&self) -> bool {
-        matches!(self, 
-            DataType::Char { .. } | DataType::Varchar { .. } | DataType::Text
-        )
+        matches!(self, DataType::Char { .. } | DataType::Varchar { .. } | DataType::Text)
     }
 
     /// Check if the data type is binary-like
     pub fn is_binary(&self) -> bool {
-        matches!(self, 
-            DataType::Binary { .. } | DataType::Varbinary { .. } | DataType::Blob
-        )
+        matches!(self, DataType::Binary { .. } | DataType::Varbinary { .. } | DataType::Blob)
     }
 
     /// Check if the data type is temporal

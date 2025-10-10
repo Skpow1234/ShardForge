@@ -91,9 +91,7 @@ impl MVCCTransactionContext {
 impl ConflictDetector {
     /// Create a new conflict detector
     pub fn new() -> Self {
-        Self {
-            active_transactions: HashMap::new(),
-        }
+        Self { active_transactions: HashMap::new() }
     }
 
     /// Add a transaction to tracking
@@ -113,14 +111,24 @@ impl ConflictDetector {
     }
 
     /// Record a read operation
-    pub fn record_read(&mut self, transaction_id: TransactionId, key: String, timestamp: Timestamp) {
+    pub fn record_read(
+        &mut self,
+        transaction_id: TransactionId,
+        key: String,
+        timestamp: Timestamp,
+    ) {
         if let Some(rw_set) = self.active_transactions.get_mut(&transaction_id) {
             rw_set.read_set.insert(key, timestamp);
         }
     }
 
     /// Record a write operation
-    pub fn record_write(&mut self, transaction_id: TransactionId, key: String, timestamp: Timestamp) {
+    pub fn record_write(
+        &mut self,
+        transaction_id: TransactionId,
+        key: String,
+        timestamp: Timestamp,
+    ) {
         if let Some(rw_set) = self.active_transactions.get_mut(&transaction_id) {
             rw_set.write_set.insert(key, timestamp);
         }
@@ -130,10 +138,11 @@ impl ConflictDetector {
     pub fn check_conflicts(&self, transaction_id: TransactionId) -> Result<Vec<Conflict>> {
         let mut conflicts = Vec::new();
 
-        let committing_rw_set = self.active_transactions.get(&transaction_id)
-            .ok_or_else(|| ShardForgeError::Transaction {
+        let committing_rw_set = self.active_transactions.get(&transaction_id).ok_or_else(|| {
+            ShardForgeError::Transaction {
                 message: format!("Transaction {:?} not found in conflict detector", transaction_id),
-            })?;
+            }
+        })?;
 
         // Check for conflicts with other active transactions
         for (&other_tx_id, other_rw_set) in &self.active_transactions {

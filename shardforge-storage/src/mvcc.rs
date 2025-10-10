@@ -93,7 +93,7 @@ impl MVCCStorage {
     /// Commit a transaction
     pub async fn commit_transaction(&self, transaction_id: TransactionId) -> Result<()> {
         let mut versions = self.versions.write().await;
-        
+
         // Mark all versions created by this transaction as committed
         for versions_list in versions.values_mut() {
             for version in versions_list.iter_mut() {
@@ -113,7 +113,7 @@ impl MVCCStorage {
     /// Abort a transaction
     pub async fn abort_transaction(&self, transaction_id: TransactionId) -> Result<()> {
         let mut versions = self.versions.write().await;
-        
+
         // Mark all versions created by this transaction as aborted
         for versions_list in versions.values_mut() {
             for version in versions_list.iter_mut() {
@@ -133,7 +133,7 @@ impl MVCCStorage {
     /// Read a value at a specific timestamp
     pub async fn read(&self, key: &Key, timestamp: Timestamp) -> Result<Option<Value>> {
         let versions = self.versions.read().await;
-        
+
         if let Some(versions_list) = versions.get(key) {
             // Find the latest visible version at the given timestamp
             for version in versions_list.iter().rev() {
@@ -155,14 +155,15 @@ impl MVCCStorage {
         timestamp: Timestamp,
     ) -> Result<()> {
         let mut versions = self.versions.write().await;
-        
+
         // Check for write-write conflicts
         if let Some(versions_list) = versions.get(&key) {
             for version in versions_list.iter().rev() {
                 // If there's an uncommitted write by another transaction after our snapshot
-                if version.timestamp > timestamp 
-                    && version.transaction_id != transaction_id 
-                    && !version.committed {
+                if version.timestamp > timestamp
+                    && version.transaction_id != transaction_id
+                    && !version.committed
+                {
                     return Err(ShardForgeError::Transaction {
                         message: format!("Write-write conflict detected for key {:?}", key),
                     });
@@ -172,11 +173,11 @@ impl MVCCStorage {
 
         // Create new version
         let new_version = Version::new(value, transaction_id, timestamp, false);
-        
+
         // Add to versions list
         let versions_list = versions.entry(key).or_insert_with(Vec::new);
         versions_list.push(new_version);
-        
+
         // Sort versions by timestamp to maintain order
         versions_list.sort_by_key(|v| v.timestamp.value());
 
@@ -244,7 +245,7 @@ impl MVCCStorage {
     pub async fn stats(&self) -> MVCCStats {
         let versions = self.versions.read().await;
         let active_transactions = self.active_transactions.read().await;
-        
+
         let total_keys = versions.len();
         let total_versions = versions.values().map(|v| v.len()).sum();
         let active_transaction_count = active_transactions.len();
@@ -344,7 +345,7 @@ mod tests {
 
         // Run garbage collection
         let collected = mvcc.garbage_collect().await.unwrap();
-        
+
         // After GC, should still have at least 1 version (the latest committed)
         let versions = mvcc.get_versions(&key).await;
         assert!(!versions.is_empty());

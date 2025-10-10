@@ -12,4 +12,5 @@ pub mod sled;
 pub use engine::*;
 pub use index::*;
 pub use iterator::*;
+pub use memory::*;
 pub use mvcc::*;

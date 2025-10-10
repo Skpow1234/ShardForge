@@ -215,8 +215,8 @@ async fn test_error_handling_and_recovery() {
     engine.delete(&nonexistent_key).await.unwrap();
 
     // Test with large data
-    let large_key = Key::new(vec![1; 1024]); // 1KB key
-    let large_value = Value::new(vec![2; 1024 * 1024]); // 1MB value
+    let large_key = Key::new(&vec![1; 1024]); // 1KB key
+    let large_value = Value::new(&vec![2; 1024 * 1024]); // 1MB value
 
     engine.put(large_key.clone(), large_value.clone()).await.unwrap();
     let retrieved = engine.get(&large_key).await.unwrap();

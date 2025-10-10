@@ -57,7 +57,7 @@ pub enum Token {
     Null,
     Auto,
     Increment,
-    
+
     // Data types
     Boolean,
     SmallInt,
@@ -77,7 +77,7 @@ pub enum Token {
     Timestamp,
     Json,
     Uuid,
-    
+
     // Operators
     Equals,
     NotEquals,
@@ -96,23 +96,23 @@ pub enum Token {
     In,
     Between,
     Is,
-    
+
     // Literals
     StringLit(String),
     IntegerLit(i64),
     FloatLit(f64),
     BooleanLit(bool),
-    
+
     // Identifiers
     Identifier(String),
-    
+
     // Punctuation
     LeftParen,
     RightParen,
     Comma,
     Semicolon,
     Dot,
-    
+
     // Special
     Wildcard, // *
     EOF,
@@ -145,10 +145,7 @@ pub enum ParseError {
 impl SqlParser {
     /// Create a new SQL parser
     pub fn new() -> Self {
-        Self {
-            tokens: Vec::new(),
-            position: 0,
-        }
+        Self { tokens: Vec::new(), position: 0 }
     }
 
     /// Parse a SQL statement from a string
@@ -262,7 +259,7 @@ impl SqlParser {
                     chars.next();
                     let mut string_val = String::new();
                     let mut escaped = false;
-                    
+
                     while let Some(&c) = chars.peek() {
                         chars.next();
                         if escaped {
@@ -286,13 +283,13 @@ impl SqlParser {
                             string_val.push(c);
                         }
                     }
-                    
+
                     tokens.push(Token::StringLit(string_val));
                 }
                 '"' => {
                     chars.next();
                     let mut identifier = String::new();
-                    
+
                     while let Some(&c) = chars.peek() {
                         chars.next();
                         if c == '"' {
@@ -300,12 +297,12 @@ impl SqlParser {
                         }
                         identifier.push(c);
                     }
-                    
+
                     tokens.push(Token::Identifier(identifier));
                 }
                 _ if ch.is_alphabetic() || ch == '_' => {
                     let mut identifier = String::new();
-                    
+
                     while let Some(&c) = chars.peek() {
                         if c.is_alphanumeric() || c == '_' {
                             identifier.push(c);
@@ -314,14 +311,14 @@ impl SqlParser {
                             break;
                         }
                     }
-                    
+
                     let token = self.keyword_or_identifier(identifier);
                     tokens.push(token);
                 }
                 _ if ch.is_numeric() => {
                     let mut number = String::new();
                     let mut is_float = false;
-                    
+
                     while let Some(&c) = chars.peek() {
                         if c.is_numeric() {
                             number.push(c);
@@ -334,11 +331,12 @@ impl SqlParser {
                             break;
                         }
                     }
-                    
+
                     if is_float {
-                        let float_val: f64 = number.parse().map_err(|_| ShardForgeError::Parse {
-                            message: "Invalid float literal".to_string(),
-                        })?;
+                        let float_val: f64 =
+                            number.parse().map_err(|_| ShardForgeError::Parse {
+                                message: "Invalid float literal".to_string(),
+                            })?;
                         tokens.push(Token::FloatLit(float_val));
                     } else {
                         let int_val: i64 = number.parse().map_err(|_| ShardForgeError::Parse {
@@ -454,7 +452,7 @@ impl SqlParser {
     /// Parse CREATE statement
     fn parse_create_statement(&mut self) -> Result<Statement> {
         self.consume_token(Token::Create)?;
-        
+
         match self.current_token() {
             Token::Table => self.parse_create_table_statement(),
             Token::Index => self.parse_create_index_statement(),
@@ -467,7 +465,7 @@ impl SqlParser {
     /// Parse CREATE TABLE statement
     fn parse_create_table_statement(&mut self) -> Result<Statement> {
         self.consume_token(Token::Table)?;
-        
+
         let if_not_exists = if self.current_token() == &Token::If {
             self.consume_token(Token::If)?;
             self.consume_token(Token::Not)?;
@@ -478,30 +476,30 @@ impl SqlParser {
         };
 
         let name = self.parse_identifier()?;
-        
+
         self.consume_token(Token::LeftParen)?;
-        
+
         let mut columns = Vec::new();
         let mut constraints = Vec::new();
-        
+
         loop {
             if self.current_token() == &Token::RightParen {
                 break;
             }
-            
+
             if self.current_token() == &Token::Constraint {
                 constraints.push(self.parse_table_constraint()?);
             } else {
                 columns.push(self.parse_column_def()?);
             }
-            
+
             if self.current_token() == &Token::Comma {
                 self.advance();
             } else {
                 break;
             }
         }
-        
+
         self.consume_token(Token::RightParen)?;
 
         Ok(Statement::CreateTable(CreateTableStatement {
@@ -515,7 +513,7 @@ impl SqlParser {
     /// Parse CREATE INDEX statement
     fn parse_create_index_statement(&mut self) -> Result<Statement> {
         self.consume_token(Token::Index)?;
-        
+
         let if_not_exists = if self.current_token() == &Token::If {
             self.consume_token(Token::If)?;
             self.consume_token(Token::Not)?;
@@ -528,20 +526,20 @@ impl SqlParser {
         let name = self.parse_identifier()?;
         self.consume_token(Token::On)?;
         let table_name = self.parse_identifier()?;
-        
+
         self.consume_token(Token::LeftParen)?;
         let mut columns = Vec::new();
-        
+
         loop {
             columns.push(self.parse_identifier()?);
-            
+
             if self.current_token() == &Token::Comma {
                 self.advance();
             } else {
                 break;
             }
         }
-        
+
         self.consume_token(Token::RightParen)?;
 
         Ok(Statement::CreateIndex(CreateIndexStatement {
@@ -550,7 +548,7 @@ impl SqlParser {
             table_name,
             columns,
             index_type: IndexType::BTree, // Default to B-tree
-            unique: false, // TODO: Parse UNIQUE keyword
+            unique: false,                // TODO: Parse UNIQUE keyword
         }))
     }
 
@@ -558,11 +556,11 @@ impl SqlParser {
     fn parse_column_def(&mut self) -> Result<ColumnDef> {
         let name = self.parse_identifier()?;
         let data_type = self.parse_data_type()?;
-        
+
         let mut nullable = true;
         let mut default = None;
         let mut auto_increment = false;
-        
+
         // Parse column constraints
         while self.position < self.tokens.len() {
             match self.current_token() {
@@ -645,13 +643,13 @@ impl SqlParser {
     fn current_token(&self) -> &Token {
         self.tokens.get(self.position).unwrap_or(&Token::EOF)
     }
-    
+
     fn advance(&mut self) {
         if self.position < self.tokens.len() {
             self.position += 1;
         }
     }
-    
+
     fn consume_token(&mut self, expected: Token) -> Result<()> {
         if self.current_token() == &expected {
             self.advance();
@@ -662,7 +660,7 @@ impl SqlParser {
             })
         }
     }
-    
+
     fn parse_identifier(&mut self) -> Result<String> {
         match self.current_token() {
             Token::Identifier(name) => {
@@ -675,7 +673,7 @@ impl SqlParser {
             }),
         }
     }
-    
+
     fn parse_integer_literal(&mut self) -> Result<i64> {
         match self.current_token() {
             Token::IntegerLit(value) => {
@@ -802,9 +800,9 @@ mod tests {
     fn test_create_table_basic() {
         let mut parser = SqlParser::new();
         let sql = "CREATE TABLE users (id INTEGER, name VARCHAR(255))";
-        
+
         let result = parser.parse(sql).unwrap();
-        
+
         match result {
             Statement::CreateTable(stmt) => {
                 assert_eq!(stmt.name, "users");
@@ -820,9 +818,9 @@ mod tests {
     fn test_create_table_if_not_exists() {
         let mut parser = SqlParser::new();
         let sql = "CREATE TABLE IF NOT EXISTS users (id INTEGER)";
-        
+
         let result = parser.parse(sql).unwrap();
-        
+
         match result {
             Statement::CreateTable(stmt) => {
                 assert!(stmt.if_not_exists);
@@ -836,7 +834,7 @@ mod tests {
     fn test_tokenizer() {
         let parser = SqlParser::new();
         let tokens = parser.tokenize("CREATE TABLE test").unwrap();
-        
+
         assert_eq!(tokens[0], Token::Create);
         assert_eq!(tokens[1], Token::Table);
         assert_eq!(tokens[2], Token::Identifier("test".to_string()));

@@ -113,30 +113,32 @@ impl QueryPlanner {
         }
 
         // Extract projection columns
-        let projection = if stmt.columns.len() == 1 && matches!(stmt.columns[0], SelectItem::Wildcard) {
-            None // Wildcard means all columns
-        } else {
-            let mut columns = Vec::new();
-            for item in stmt.columns {
-                match item {
-                    SelectItem::Expression { expr, alias } => {
-                        if let Expression::Column(column_name) = expr {
-                            columns.push(alias.unwrap_or(column_name));
-                        } else {
+        let projection =
+            if stmt.columns.len() == 1 && matches!(stmt.columns[0], SelectItem::Wildcard) {
+                None // Wildcard means all columns
+            } else {
+                let mut columns = Vec::new();
+                for item in stmt.columns {
+                    match item {
+                        SelectItem::Expression { expr, alias } => {
+                            if let Expression::Column(column_name) = expr {
+                                columns.push(alias.unwrap_or(column_name));
+                            } else {
+                                return Err(ShardForgeError::Query {
+                                    message: "Complex expressions not yet supported in SELECT"
+                                        .to_string(),
+                                });
+                            }
+                        }
+                        SelectItem::Wildcard => {
                             return Err(ShardForgeError::Query {
-                                message: "Complex expressions not yet supported in SELECT".to_string(),
+                                message: "Cannot mix wildcard with specific columns".to_string(),
                             });
                         }
                     }
-                    SelectItem::Wildcard => {
-                        return Err(ShardForgeError::Query {
-                            message: "Cannot mix wildcard with specific columns".to_string(),
-                        });
-                    }
                 }
-            }
-            Some(columns)
-        };
+                Some(columns)
+            };
 
         Ok(LogicalPlan::TableScan {
             table_name,
@@ -193,33 +195,24 @@ impl QueryOptimizer {
             LogicalPlan::TableScan { table_name, projection, filter } => {
                 // For now, always use sequential scan
                 // In the future, we'll check for indexes and use them when beneficial
-                Ok(PhysicalPlan::SeqScan {
-                    table_name,
-                    projection,
-                    filter,
-                })
+                Ok(PhysicalPlan::SeqScan { table_name, projection, filter })
             }
             LogicalPlan::Insert { table_name, columns, values } => {
-                Ok(PhysicalPlan::Insert {
-                    table_name,
-                    columns,
-                    values,
-                })
+                Ok(PhysicalPlan::Insert { table_name, columns, values })
             }
-            LogicalPlan::CreateTable { name, columns, constraints, if_not_exists } => {
-                Ok(PhysicalPlan::CreateTable {
-                    name,
-                    columns,
-                    constraints,
-                    if_not_exists,
-                })
-            }
+            LogicalPlan::CreateTable {
+                name,
+                columns,
+                constraints,
+                if_not_exists,
+            } => Ok(PhysicalPlan::CreateTable {
+                name,
+                columns,
+                constraints,
+                if_not_exists,
+            }),
             LogicalPlan::DropTable { name, if_exists, cascade } => {
-                Ok(PhysicalPlan::DropTable {
-                    name,
-                    if_exists,
-                    cascade,
-                })
+                Ok(PhysicalPlan::DropTable { name, if_exists, cascade })
             }
         }
     }
@@ -278,27 +271,25 @@ mod tests {
     #[test]
     fn test_plan_select() {
         let mut catalog = SchemaCatalog::new();
-        
+
         // Add a test table to the catalog
-        use crate::sql::executor::{TableSchema, ColumnSchema};
+        use crate::sql::executor::{ColumnSchema, TableSchema};
         let table_schema = TableSchema {
             name: "users".to_string(),
-            columns: vec![
-                ColumnSchema {
-                    name: "id".to_string(),
-                    data_type: DataType::Integer,
-                    nullable: false,
-                    default_value: None,
-                    auto_increment: true,
-                },
-            ],
+            columns: vec![ColumnSchema {
+                name: "id".to_string(),
+                data_type: DataType::Integer,
+                nullable: false,
+                default_value: None,
+                auto_increment: true,
+            }],
             primary_key: None,
             indexes: vec![],
         };
         catalog.add_table(table_schema);
-        
+
         let planner = QueryPlanner::new(catalog);
-        
+
         let select_stmt = SelectStatement {
             distinct: false,
             columns: vec![SelectItem::Wildcard],
@@ -310,9 +301,9 @@ mod tests {
             limit: None,
             offset: None,
         };
-        
+
         let plan = planner.plan(Statement::Select(select_stmt)).unwrap();
-        
+
         match plan {
             LogicalPlan::TableScan { table_name, projection, filter } => {
                 assert_eq!(table_name, "users");
@@ -326,15 +317,15 @@ mod tests {
     #[test]
     fn test_optimize_table_scan() {
         let optimizer = QueryOptimizer::new();
-        
+
         let logical_plan = LogicalPlan::TableScan {
             table_name: "users".to_string(),
             projection: None,
             filter: None,
         };
-        
+
         let physical_plan = optimizer.optimize(logical_plan).unwrap();
-        
+
         match physical_plan {
             PhysicalPlan::SeqScan { table_name, projection, filter } => {
                 assert_eq!(table_name, "users");
@@ -348,13 +339,13 @@ mod tests {
     #[test]
     fn test_cost_estimation() {
         let optimizer = QueryOptimizer::new();
-        
+
         let plan = PhysicalPlan::SeqScan {
             table_name: "users".to_string(),
             projection: None,
             filter: None,
         };
-        
+
         let cost = optimizer.estimate_cost(&plan);
         assert!(cost.total_cost > 0.0);
     }

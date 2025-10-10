@@ -1,0 +1,31 @@
+# Prometheus configuration for ShardForge monitoring
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  # - "first_rules.yml"
+  # - "second_rules.yml"
+
+scrape_configs:
+  # ShardForge metrics
+  - job_name: 'shardforge'
+    static_configs:
+      - targets: ['shardforge:9090']
+    scrape_interval: 5s
+    metrics_path: '/metrics'
+
+  # ShardForge cluster nodes
+  - job_name: 'shardforge-cluster'
+    static_configs:
+      - targets: 
+        - 'shardforge:9090'
+        - 'shardforge-node2:9090'
+        - 'shardforge-node3:9090'
+    scrape_interval: 10s
+    metrics_path: '/metrics'
+
+  # Prometheus itself
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
