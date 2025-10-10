@@ -18,14 +18,14 @@ ShardForge development follows a phased approach over 36 months, focusing on inc
 
 - [x] Project setup with Rust workspace and modular architecture
 - [x] Basic storage engine abstraction with RocksDB integration
-- [ ] Wire protocol design and gRPC service definitions
+- [x] Wire protocol design and gRPC service definitions
 - [x] Configuration management system
 - [x] Logging and basic observability
 
 #### Month 3-4: Storage & SQL Foundation
 
-- [ ] LSM-tree storage engine with MVCC support
-- [ ] Basic SQL parser (DDL: CREATE, DROP, ALTER TABLE)
+- [x] LSM-tree storage engine with MVCC support
+- [x] Basic SQL parser (DDL: CREATE, DROP, ALTER TABLE)
 - [ ] Simple query execution engine (point queries)
 - [ ] Transaction manager with ACID properties
 - [ ] Basic indexing (B-tree, Hash)
