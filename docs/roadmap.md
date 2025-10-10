@@ -26,9 +26,9 @@ ShardForge development follows a phased approach over 36 months, focusing on inc
 
 - [x] LSM-tree storage engine with MVCC support
 - [x] Basic SQL parser (DDL: CREATE, DROP, ALTER TABLE)
-- [ ] Simple query execution engine (point queries)
-- [ ] Transaction manager with ACID properties
-- [ ] Basic indexing (B-tree, Hash)
+- [x] Simple query execution engine (point queries)
+- [x] Transaction manager with ACID properties
+- [x] Basic indexing (B-tree, Hash)
 
 #### Month 5-6: SQL & Query Processing
 

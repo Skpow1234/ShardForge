@@ -29,6 +29,7 @@ pub use shardforge_storage as storage;
 // Local modules
 pub mod network;
 pub mod sql;
+pub mod transaction;
 
 /// Version information
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
