@@ -1,19 +1,17 @@
 # ShardForge - Optimized Multi-Stage Docker Build
 # Production-ready database with caching and security best practices
 
-# Build stage
-FROM rust:1.90-bookworm AS builder
+# Build stage - using Alpine for better security
+FROM rust:1.90-alpine AS builder
 
 # Install build dependencies with security updates
-RUN apt-get update && apt-get install -y \
-    protobuf-compiler \
-    libprotobuf-dev \
-    pkg-config \
-    libssl-dev \
+RUN apk add --no-cache \
+    protobuf-dev \
+    protoc \
+    pkgconfig \
+    openssl-dev \
     ca-certificates \
-    && apt-get upgrade -y \
-    && rm -rf /var/lib/apt/lists/* \
-    && apt-get clean
+    musl-dev
 
 WORKDIR /usr/src/shardforge
 

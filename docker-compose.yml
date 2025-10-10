@@ -9,7 +9,7 @@ services:
       dockerfile: Dockerfile
       cache_from:
         - shardforge:latest
-    image: shardforge:distroless
+    image: shardforge:alpine-secure
     ports:
       - "5432:5432"  # PostgreSQL protocol
       - "9090:9090"  # gRPC API

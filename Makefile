@@ -59,7 +59,7 @@ coverage: ## Generate coverage report
 # Docker commands
 docker-build: ## Build Docker image
 	@echo "🐳 Building Docker image..."
-	docker build -t shardforge:distroless .
+	docker build -t shardforge:alpine-secure .
 
 docker-up: ## Start ShardForge in production mode
 	@echo "🚀 Starting ShardForge..."
@@ -96,7 +96,7 @@ docker-clean: ## Clean up Docker resources
 
 docker-scan: ## Scan Docker image for vulnerabilities
 	@echo "🔍 Scanning Docker image for vulnerabilities..."
-	docker scout cves shardforge:distroless
+	docker scout cves shardforge:alpine-secure
 
 
 docker-secure: ## Build and scan Docker image for security
