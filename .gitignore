@@ -1,6 +1,6 @@
 # Rust build artifacts
 target/
-Cargo.lock
+# Cargo.lock should be committed for applications to ensure reproducible builds
 
 # Data directories
 data/

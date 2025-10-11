@@ -165,8 +165,8 @@ impl ConflictDetector {
             // Check for Read-Write conflicts
             for (key, timestamp) in &committing_rw_set.write_set {
                 if let Some(other_timestamp) = other_rw_set.read_set.get(key) {
-                    // Conflict if the other transaction read the old value
-                    if *other_timestamp < *timestamp {
+                    // Conflict if the other transaction read the key after we wrote it
+                    if *other_timestamp > *timestamp {
                         conflicts.push(Conflict {
                             conflict_type: ConflictType::ReadWrite,
                             resource: key.clone(),
@@ -215,7 +215,7 @@ impl ConflictDetector {
                     return true; // Write-Write conflict
                 }
                 if let Some(&read_timestamp) = other_rw_set.read_set.get(key) {
-                    if read_timestamp >= timestamp {
+                    if read_timestamp > timestamp {
                         return true; // Read-Write conflict
                     }
                 }

@@ -84,6 +84,7 @@ jobs:
             choco install visualstudio2022buildtools --package-parameters "--add Microsoft.VisualStudio.Workload.VCTools --includeRecommended" -y
             refreshenv
           fi
+        shell: bash
 
       - name: Build
         run: |

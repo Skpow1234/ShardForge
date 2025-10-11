@@ -11,7 +11,7 @@ env:
   RUST_BACKTRACE: 1
 
 jobs:
-  # Format and lint checks
+  # Format and lint checks (no matrix strategy)
   format-lint:
     name: Format and Lint
     runs-on: ubuntu-latest
