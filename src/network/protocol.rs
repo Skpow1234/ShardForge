@@ -12,7 +12,7 @@ pub mod proto {
     use tonic::{Request, Response, Status};
 
     // Basic stub types for compilation
-    
+
     /// Request to execute a SQL query
     #[derive(Debug, Clone)]
     pub struct QueryRequest {

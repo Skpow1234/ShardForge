@@ -30,7 +30,9 @@ jobs:
         uses: Swatinem/rust-cache@v2
 
       - name: Check formatting
-        run: cargo fmt --all -- --check
+        run: |
+          echo "🔍 Checking code formatting..."
+          cargo fmt --all -- --check
 
       - name: Quick clippy check
         run: cargo clippy --all-targets --features sled --no-default-features -- -D warnings

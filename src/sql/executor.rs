@@ -322,7 +322,11 @@ impl QueryExecutor {
     fn extract_key_from_where(&self, where_clause: &Expression, table_name: &str) -> Result<Key> {
         // For simplicity, assume WHERE clause is "id = value"
         match where_clause {
-            Expression::BinaryOp { left: _left, op: BinaryOperator::Equal, right } => {
+            Expression::BinaryOp {
+                left: _left,
+                op: BinaryOperator::Equal,
+                right,
+            } => {
                 // Extract the value (simplified)
                 if let Expression::Literal(Literal::Integer(id)) = right.as_ref() {
                     Ok(Key::new(format!("{}:{}", table_name, id).as_bytes()))

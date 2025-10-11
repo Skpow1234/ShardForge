@@ -36,7 +36,9 @@ jobs:
             shardforge-storage -> shardforge-storage/target
 
       - name: Check formatting
-        run: cargo fmt --all -- --check
+        run: |
+          echo "🔍 Checking code formatting..."
+          cargo fmt --all -- --check
 
       - name: Run clippy (warnings allowed)
         run: |
