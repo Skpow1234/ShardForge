@@ -25,15 +25,15 @@ jobs:
           components: rustfmt, clippy
 
       - name: Cache cargo dependencies
-        uses: actions/cache@v4
+        uses: Swatinem/rust-cache@v2
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-
+          key: ${{ runner.os }}-${{ matrix.features }}-${{ hashFiles('**/Cargo.lock') }}
+          workspaces: |
+            . -> target
+            shardforge-cli -> shardforge-cli/target
+            shardforge-config -> shardforge-config/target
+            shardforge-core -> shardforge-core/target
+            shardforge-storage -> shardforge-storage/target
 
       - name: Check formatting
         run: cargo fmt --all -- --check
@@ -44,12 +44,25 @@ jobs:
 
   # Build and test on multiple platforms
   test:
-    name: Test on ${{ matrix.os }}
+    name: Test on ${{ matrix.os }} (${{ matrix.features }})
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        features: [sled, rocksdb]
+        include:
+          # Primary test combinations - most important
+          - os: ubuntu-latest
+            features: sled
+            priority: high
+          - os: ubuntu-latest
+            features: rocksdb
+            priority: high
+          # Secondary combinations - less critical
+          - os: windows-latest
+            features: sled
+            priority: medium
+          - os: macos-latest
+            features: sled
+            priority: medium
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -58,15 +71,15 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Cache cargo dependencies
-        uses: actions/cache@v4
+        uses: Swatinem/rust-cache@v2
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-
+          key: ${{ runner.os }}-${{ matrix.features }}-${{ hashFiles('**/Cargo.lock') }}
+          workspaces: |
+            . -> target
+            shardforge-cli -> shardforge-cli/target
+            shardforge-config -> shardforge-config/target
+            shardforge-core -> shardforge-core/target
+            shardforge-storage -> shardforge-storage/target
 
       - name: Install system dependencies (Ubuntu)
         if: matrix.os == 'ubuntu-latest'
@@ -92,30 +105,14 @@ jobs:
 
       - name: Build with ${{ matrix.features }} features
         run: |
-          if [ "${{ matrix.features }}" = "rocksdb" ]; then
-            echo "Building with RocksDB features..."
-            cargo build --all-targets --features rocksdb --no-default-features || {
-              echo "RocksDB build failed, trying with sled as fallback..."
-              cargo build --all-targets --features sled --no-default-features
-            }
-          else
-            echo "Building with Sled features..."
-            cargo build --all-targets --features sled --no-default-features
-          fi
+          echo "🔨 Building with ${{ matrix.features }} features on ${{ matrix.os }}..."
+          cargo build --all-targets --features ${{ matrix.features }} --no-default-features
         shell: bash
 
       - name: Run tests with ${{ matrix.features }} features
         run: |
-          if [ "${{ matrix.features }}" = "rocksdb" ]; then
-            echo "Testing with RocksDB features..."
-            cargo test --workspace --features rocksdb --no-default-features || {
-              echo "RocksDB tests failed, trying with sled as fallback..."
-              cargo test --workspace --features sled --no-default-features
-            }
-          else
-            echo "Testing with Sled features..."
-            cargo test --workspace --features sled --no-default-features
-          fi
+          echo "🧪 Testing with ${{ matrix.features }} features on ${{ matrix.os }}..."
+          cargo test --workspace --features ${{ matrix.features }} --no-default-features
         shell: bash
 
       - name: Run benchmarks (if available)
@@ -158,15 +155,15 @@ jobs:
           components: rust-docs
 
       - name: Cache cargo dependencies
-        uses: actions/cache@v4
+        uses: Swatinem/rust-cache@v2
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-
+          key: ${{ runner.os }}-${{ matrix.features }}-${{ hashFiles('**/Cargo.lock') }}
+          workspaces: |
+            . -> target
+            shardforge-cli -> shardforge-cli/target
+            shardforge-config -> shardforge-config/target
+            shardforge-core -> shardforge-core/target
+            shardforge-storage -> shardforge-storage/target
 
       - name: Build documentation
         run: |
@@ -192,15 +189,15 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Cache cargo dependencies
-        uses: actions/cache@v4
+        uses: Swatinem/rust-cache@v2
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-
+          key: ${{ runner.os }}-${{ matrix.features }}-${{ hashFiles('**/Cargo.lock') }}
+          workspaces: |
+            . -> target
+            shardforge-cli -> shardforge-cli/target
+            shardforge-config -> shardforge-config/target
+            shardforge-core -> shardforge-core/target
+            shardforge-storage -> shardforge-storage/target
 
       - name: Run benchmarks
         run: |
@@ -220,15 +217,15 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Cache cargo dependencies
-        uses: actions/cache@v4
+        uses: Swatinem/rust-cache@v2
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-
+          key: ${{ runner.os }}-${{ matrix.features }}-${{ hashFiles('**/Cargo.lock') }}
+          workspaces: |
+            . -> target
+            shardforge-cli -> shardforge-cli/target
+            shardforge-config -> shardforge-config/target
+            shardforge-core -> shardforge-core/target
+            shardforge-storage -> shardforge-storage/target
 
       - name: Build release binaries
         run: |

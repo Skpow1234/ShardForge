@@ -1,0 +1,258 @@
+name: Comprehensive CI/CD
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  # Quick validation for PRs
+  quick-check:
+    name: Quick Check
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      - name: Quick clippy check
+        run: cargo clippy --all-targets --features sled --no-default-features -- -D warnings
+
+      - name: Quick build check
+        run: cargo build --features sled --no-default-features
+
+  # Comprehensive testing
+  test:
+    name: Test (${{ matrix.os }} - ${{ matrix.features }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            features: sled
+            priority: high
+          - os: ubuntu-latest
+            features: rocksdb
+            priority: high
+          - os: windows-latest
+            features: sled
+            priority: medium
+          - os: macos-latest
+            features: sled
+            priority: medium
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ runner.os }}-${{ matrix.features }}-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Install system dependencies
+        run: |
+          if [ "${{ runner.os }}" == "Linux" ]; then
+            sudo apt-get update
+            sudo apt-get install -y build-essential libssl-dev pkg-config protobuf-compiler
+          elif [ "${{ runner.os }}" == "macOS" ]; then
+            brew install openssl pkg-config cmake protobuf
+            echo "PKG_CONFIG_PATH=/usr/local/opt/openssl/lib/pkgconfig" >> $GITHUB_ENV
+            echo "OPENSSL_ROOT_DIR=/usr/local/opt/openssl" >> $GITHUB_ENV
+          elif [ "${{ runner.os }}" == "Windows" ]; then
+            choco install visualstudio2022buildtools --package-parameters "--add Microsoft.VisualStudio.Workload.VCTools --includeRecommended" -y
+            refreshenv
+          fi
+
+      - name: Build
+        run: |
+          echo "🔨 Building with ${{ matrix.features }} features on ${{ matrix.os }}..."
+          cargo build --all-targets --features ${{ matrix.features }} --no-default-features
+
+      - name: Test
+        run: |
+          echo "🧪 Testing with ${{ matrix.features }} features on ${{ matrix.os }}..."
+          cargo test --workspace --features ${{ matrix.features }} --no-default-features
+
+      - name: Run benchmarks
+        run: |
+          echo "📊 Running benchmarks with ${{ matrix.features }} features..."
+          cargo bench --features ${{ matrix.features }} --no-default-features || echo "Benchmarks failed, continuing..."
+
+  # Security and quality checks
+  security-quality:
+    name: Security & Quality
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install tools
+        run: |
+          cargo install cargo-audit cargo-deny
+          sudo apt-get update
+          sudo apt-get install -y jq
+
+      - name: Security audit
+        run: cargo audit
+
+      - name: License check
+        run: cargo deny check --all-features
+
+      - name: Check for unused dependencies
+        run: |
+          cargo install cargo-machete
+          cargo machete
+
+      - name: Check for outdated dependencies
+        run: |
+          cargo install cargo-outdated
+          cargo outdated --exit-code 1 || echo "Some dependencies are outdated"
+
+  # Documentation
+  docs:
+    name: Documentation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rust-docs
+
+      - name: Cache dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build documentation
+        run: |
+          echo "📚 Building documentation..."
+          cargo doc --features sled --no-default-features --no-deps
+          cargo doc --features rocksdb --no-default-features --no-deps || echo "RocksDB docs failed, continuing"
+
+      - name: Check documentation coverage
+        run: |
+          echo "📊 Checking documentation coverage..."
+          cargo doc --no-deps --document-private-items 2>&1 | tee doc_output.log || true
+          undocumented=$(grep -c "missing documentation" doc_output.log || true)
+          echo "Missing documentation warnings: $undocumented"
+          if [ "$undocumented" -gt 100 ]; then
+            echo "⚠️ High number of undocumented items: $undocumented"
+          else
+            echo "✅ Documentation coverage acceptable: $undocumented missing docs"
+          fi
+
+  # Performance benchmarks
+  benchmarks:
+    name: Performance Benchmarks
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Run comprehensive benchmarks
+        run: |
+          echo "📊 Running comprehensive benchmarks..."
+          cargo bench --features sled --no-default-features
+          cargo bench --features rocksdb --no-default-features || echo "RocksDB benchmarks failed"
+
+      - name: Analyze binary size
+        run: |
+          echo "📦 Analyzing binary size..."
+          cargo build --release --features sled --no-default-features
+          ls -lh target/release/shardforge
+          size=$(stat -c%s target/release/shardforge)
+          echo "Binary size: $size bytes ($(($size / 1024 / 1024)) MB)"
+
+  # Docker build and test
+  docker:
+    name: Docker Build & Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: false
+          tags: shardforge:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Test Docker image
+        run: |
+          echo "🐳 Testing Docker image..."
+          docker run --rm -d --name shardforge-test -p 5432:5432 shardforge:test
+          sleep 5
+          if docker ps | grep -q shardforge-test; then
+            echo "✅ Docker container started successfully"
+          else
+            echo "❌ Docker container failed to start"
+            docker logs shardforge-test
+            exit 1
+          fi
+          docker stop shardforge-test || true
+
+  # Summary and reporting
+  summary:
+    name: Summary
+    runs-on: ubuntu-latest
+    needs: [test, security-quality, docs, docker]
+    if: always()
+    steps:
+      - name: Generate summary
+        run: |
+          echo "## 🎯 CI/CD Pipeline Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Test | ${{ needs.test.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Security & Quality | ${{ needs.security-quality.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Documentation | ${{ needs.docs.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Docker | ${{ needs.docker.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ needs.test.result }}" == "success" ] && [ "${{ needs.security-quality.result }}" == "success" ] && [ "${{ needs.docs.result }}" == "success" ] && [ "${{ needs.docker.result }}" == "success" ]; then
+            echo "✅ All checks passed! Ready for merge/deploy." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Some checks failed. Please review the logs." >> $GITHUB_STEP_SUMMARY
+          fi

@@ -39,10 +39,24 @@ jobs:
       - name: Check for clippy warnings
         run: |
           echo "🔍 Checking for clippy warnings..."
-          cargo clippy --all-targets --all-features -- -W clippy::all -W clippy::pedantic -W clippy::nursery -W clippy::cargo || {
+          # Capture clippy output
+          cargo clippy --all-targets --all-features -- -W clippy::all -W clippy::pedantic -W clippy::nursery -W clippy::cargo 2>&1 | tee clippy_output.log || {
             echo "⚠️ Clippy warnings found:"
             echo "This is a non-blocking check. Warnings are logged but don't fail the build."
             echo "To fix warnings, run: cargo clippy --fix --allow-dirty"
+            
+            # Count and categorize warnings
+            warning_count=$(grep -c "warning:" clippy_output.log || true)
+            error_count=$(grep -c "error:" clippy_output.log || true)
+            
+            echo "📊 Warning Summary:"
+            echo "- Total warnings: $warning_count"
+            echo "- Total errors: $error_count"
+            
+            # Show top warning types
+            echo "🔝 Top warning types:"
+            grep "warning:" clippy_output.log | cut -d: -f4 | sort | uniq -c | sort -nr | head -5 || true
+            
             exit 0  # Always succeed, just log warnings
           }
         shell: bash
@@ -57,11 +71,31 @@ jobs:
           echo "⚠️ Compiler warnings found (non-blocking)"
         shell: bash
 
-      - name: Summary
+      - name: Generate warnings report
         run: |
           echo "📋 Warnings Summary:"
           echo "- This job is non-blocking and will always pass"
           echo "- Warnings are logged for visibility"
           echo "- To fix warnings, address the clippy suggestions"
           echo "- For CI/CD purposes, warnings don't block the pipeline"
+          
+          # Create a simple warnings report
+          echo "# Warnings Report" > warnings_report.md
+          echo "Generated on: $(date)" >> warnings_report.md
+          echo "" >> warnings_report.md
+          
+          if [ -f "clippy_output.log" ]; then
+            echo "## Clippy Warnings" >> warnings_report.md
+            echo "\`\`\`" >> warnings_report.md
+            head -20 clippy_output.log >> warnings_report.md
+            echo "\`\`\`" >> warnings_report.md
+          fi
+          
+          echo "📄 Warnings report generated: warnings_report.md"
         shell: bash
+
+      - name: Upload warnings report
+        uses: actions/upload-artifact@v4
+        with:
+          name: warnings-report-${{ github.sha }}
+          path: warnings_report.md

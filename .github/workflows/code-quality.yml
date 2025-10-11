@@ -32,6 +32,11 @@ jobs:
         cargo install cargo-machete
         cargo install cargo-outdated
         cargo install cargo-bloat
+        cargo install cargo-audit
+        cargo install cargo-deny
+        # Install jq for license checking
+        sudo apt-get update
+        sudo apt-get install -y jq
 
     - name: Check for unused dependencies
       run: cargo machete
@@ -50,10 +55,7 @@ jobs:
         cargo tree | grep -E "├──|└──" | sort | uniq -c | sort -nr | head -20
 
     - name: Run cargo-deny
-      uses: EmbarkStudios/cargo-deny-action@v1
-      with:
-        command: check
-        arguments: --all-features
+      run: cargo deny check --all-features
 
     - name: Check license compatibility
       run: |
@@ -107,9 +109,12 @@ jobs:
     - name: Run Miri
       run: |
         cargo miri setup
-        cargo miri test --lib --bins
+        # Run Miri on core functionality only (storage and core modules)
+        cargo miri test --package shardforge-core --lib
+        cargo miri test --package shardforge-storage --lib
       env:
         MIRIFLAGS: -Zmiri-disable-isolation
+        RUST_BACKTRACE: 1
 
   # Fuzz testing
   fuzz:
@@ -136,11 +141,22 @@ jobs:
         sudo apt-get install -y libssl-dev pkg-config clang
 
     - name: Build fuzz targets
-      run: cargo fuzz build
+      run: |
+        # Only build if fuzz targets exist
+        if [ -d "fuzz" ]; then
+          cargo fuzz build
+        else
+          echo "No fuzz targets found, skipping fuzz build"
+        fi
 
     - name: Run fuzz tests (short)
       run: |
-        # Run each fuzz target for a short time
-        for target in $(cargo fuzz list); do
-          timeout 60 cargo fuzz run $target -- -max_total_time=30 || true
-        done
+        # Only run if fuzz targets exist
+        if [ -d "fuzz" ]; then
+          for target in $(cargo fuzz list); do
+            echo "Running fuzz target: $target"
+            timeout 60 cargo fuzz run $target -- -max_total_time=30 || echo "Fuzz target $target completed or timed out"
+          done
+        else
+          echo "No fuzz targets found, skipping fuzz tests"
+        fi

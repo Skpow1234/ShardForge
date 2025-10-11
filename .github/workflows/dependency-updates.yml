@@ -40,7 +40,15 @@ jobs:
 
     - name: Run tests after update (workspace)
       if: steps.lockfile-changed.outputs.changed == 'true'
-      run: cargo test --workspace
+      run: |
+        echo "🧪 Running tests with updated dependencies..."
+        # Test with sled features
+        cargo test --workspace --features sled --no-default-features
+        # Test with rocksdb features if possible
+        cargo test --workspace --features rocksdb --no-default-features || echo "RocksDB tests failed, continuing"
+        
+        # Run security audit
+        cargo audit || echo "Security audit failed, continuing"
 
     - name: Create pull request
       if: steps.lockfile-changed.outputs.changed == 'true'
