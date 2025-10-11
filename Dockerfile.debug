@@ -1,0 +1,30 @@
+# Debug Dockerfile to test build context
+FROM alpine:latest
+
+WORKDIR /test
+
+# Copy everything to see what's available
+COPY . .
+
+# List all files to debug build context
+RUN echo "=== Build Context Debug ===" && \
+    echo "📊 Total size:" && \
+    du -sh . && \
+    echo "📋 All files:" && \
+    find . -type f | head -50 && \
+    echo "📋 Cargo files specifically:" && \
+    find . -name "Cargo.*" && \
+    echo "📋 Cargo.lock content:" && \
+    if [ -f Cargo.lock ]; then \
+        echo "Cargo.lock exists, size: $(wc -l < Cargo.lock) lines"; \
+        head -5 Cargo.lock; \
+    else \
+        echo "❌ Cargo.lock NOT FOUND"; \
+    fi && \
+    echo "📋 Cargo.toml content:" && \
+    if [ -f Cargo.toml ]; then \
+        echo "Cargo.toml exists"; \
+        head -5 Cargo.toml; \
+    else \
+        echo "❌ Cargo.toml NOT FOUND"; \
+    fi

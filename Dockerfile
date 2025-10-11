@@ -16,11 +16,22 @@ RUN apk add --no-cache \
 WORKDIR /usr/src/shardforge
 
 # Copy workspace configuration for dependency caching
-# Copy all Cargo files at once to ensure they're available
-COPY Cargo.toml Cargo.lock ./
+# Copy Cargo.toml first
+COPY Cargo.toml ./
 COPY shardforge-core/Cargo.toml ./shardforge-core/
 COPY shardforge-config/Cargo.toml ./shardforge-config/
 COPY shardforge-storage/Cargo.toml ./shardforge-storage/
+
+# Try to copy Cargo.lock, but don't fail if it doesn't exist
+COPY Cargo.lock* ./
+
+# Ensure Cargo.lock exists (generate if missing)
+RUN if [ ! -f Cargo.lock ]; then \
+        echo "⚠️ Cargo.lock not found in build context, generating it..." && \
+        cargo generate-lockfile; \
+    else \
+        echo "✅ Cargo.lock found in build context"; \
+    fi
 
 # Verify files were copied correctly and show build context
 RUN echo "=== Build Context Verification ===" && \
@@ -30,7 +41,9 @@ RUN echo "=== Build Context Verification ===" && \
     echo "=== Workspace members ===" && \
     ls -la shardforge-*/ && \
     echo "=== Cargo.lock content check ===" && \
-    head -5 Cargo.lock
+    head -5 Cargo.lock && \
+    echo "=== Cargo.lock size ===" && \
+    wc -l Cargo.lock
 
 # Create dummy source files to build dependencies first (caching optimization)
 RUN mkdir -p src bin shardforge-core/src shardforge-config/src shardforge-storage/src && \
