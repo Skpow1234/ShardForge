@@ -210,6 +210,15 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Verify build context
+        run: |
+          echo "🔍 Verifying build context..."
+          ls -la
+          echo "📋 Checking Cargo.lock..."
+          ls -la Cargo.lock
+          echo "📋 Checking Cargo.toml..."
+          ls -la Cargo.toml
+
       - name: Build Docker image
         uses: docker/build-push-action@v5
         with:

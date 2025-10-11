@@ -16,10 +16,21 @@ RUN apk add --no-cache \
 WORKDIR /usr/src/shardforge
 
 # Copy workspace configuration for dependency caching
+# Copy all Cargo files at once to ensure they're available
 COPY Cargo.toml Cargo.lock ./
 COPY shardforge-core/Cargo.toml ./shardforge-core/
 COPY shardforge-config/Cargo.toml ./shardforge-config/
 COPY shardforge-storage/Cargo.toml ./shardforge-storage/
+
+# Verify files were copied correctly and show build context
+RUN echo "=== Build Context Verification ===" && \
+    ls -la && \
+    echo "=== Cargo files ===" && \
+    ls -la Cargo.toml Cargo.lock && \
+    echo "=== Workspace members ===" && \
+    ls -la shardforge-*/ && \
+    echo "=== Cargo.lock content check ===" && \
+    head -5 Cargo.lock
 
 # Create dummy source files to build dependencies first (caching optimization)
 RUN mkdir -p src bin shardforge-core/src shardforge-config/src shardforge-storage/src && \
@@ -29,15 +40,15 @@ RUN mkdir -p src bin shardforge-core/src shardforge-config/src shardforge-storag
     echo "fn main() {}" > shardforge-config/src/lib.rs && \
     echo "fn main() {}" > shardforge-storage/src/lib.rs
 
-# Build dependencies (cached layer)
-RUN cargo build --release --bin shardforge
+# Build dependencies (cached layer) - use sled features for compatibility
+RUN cargo build --release --bin shardforge --features sled --no-default-features
 
 # Remove dummy files and copy actual source
 RUN rm -rf src bin shardforge-core/src shardforge-config/src shardforge-storage/src
 COPY . .
 
 # Build final binary (only our code changes, deps already cached)
-RUN cargo build --release --bin shardforge
+RUN cargo build --release --bin shardforge --features sled --no-default-features
 
 # Runtime stage - distroless for maximum security
 FROM gcr.io/distroless/cc-debian12
