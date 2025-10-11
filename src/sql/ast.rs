@@ -1,7 +1,7 @@
 //! Abstract Syntax Tree for SQL statements
 
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+// use std::collections::HashMap; // TODO: Remove when implementing table metadata
 
 /// SQL Statement
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

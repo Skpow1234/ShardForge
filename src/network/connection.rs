@@ -134,9 +134,13 @@ pub struct CircuitBreaker {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+/// Circuit breaker state for connection management
 pub enum CircuitState {
+    /// Circuit is closed, requests are allowed
     Closed,
+    /// Circuit is open, requests are blocked
     Open,
+    /// Circuit is half-open, testing if service is back
     HalfOpen,
 }
 

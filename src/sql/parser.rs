@@ -1,6 +1,6 @@
 //! SQL parser implementation
 
-use std::collections::HashMap;
+// use std::collections::HashMap; // TODO: Remove when implementing symbol table
 
 use shardforge_core::{Result, ShardForgeError};
 

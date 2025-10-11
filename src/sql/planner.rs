@@ -3,7 +3,7 @@
 use shardforge_core::{Result, ShardForgeError};
 
 use crate::sql::ast::*;
-use crate::sql::executor::{QueryResult, SchemaCatalog};
+use crate::sql::executor::SchemaCatalog;
 
 /// Query planner
 pub struct QueryPlanner {

@@ -12,6 +12,8 @@ pub mod proto {
     use tonic::{Request, Response, Status};
 
     // Basic stub types for compilation
+    
+    /// Request to execute a SQL query
     #[derive(Debug, Clone)]
     pub struct QueryRequest {
         pub query_id: String,
@@ -21,12 +23,14 @@ pub mod proto {
         pub streaming_response: bool,
     }
 
+    /// Query parameter with name and value
     #[derive(Debug, Clone)]
     pub struct Parameter {
         pub name: String,
         pub value: Option<Value>,
     }
 
+    /// Options for query execution
     #[derive(Debug, Clone)]
     pub struct QueryOptions {
         pub timeout_seconds: u32,
@@ -174,7 +178,7 @@ pub mod proto {
     }
 
     pub mod database_service_server {
-        use super::*;
+        use super::*; // TODO: Remove when implementing actual service logic
 
         pub struct DatabaseServiceServer<T> {
             inner: T,
@@ -188,7 +192,7 @@ pub mod proto {
     }
 
     pub mod database_service_client {
-        use super::*;
+        use super::*; // TODO: Remove when implementing actual service logic
         use tonic::transport::Channel;
 
         pub struct DatabaseServiceClient<T> {
@@ -202,7 +206,7 @@ pub mod proto {
 
             pub async fn execute_query(
                 &mut self,
-                request: QueryRequest,
+                _request: QueryRequest,
             ) -> Result<Response<QueryResponse>, Status> {
                 // Stub implementation
                 Ok(Response::new(QueryResponse { has_more: false, cursor: "".to_string() }))
@@ -210,7 +214,7 @@ pub mod proto {
 
             pub async fn begin_transaction(
                 &mut self,
-                request: TransactionRequest,
+                _request: TransactionRequest,
             ) -> Result<Response<TransactionResponse>, Status> {
                 Ok(Response::new(TransactionResponse {
                     transaction_id: "tx_stub".to_string(),
@@ -220,21 +224,21 @@ pub mod proto {
 
             pub async fn commit_transaction(
                 &mut self,
-                request: CommitRequest,
+                _request: CommitRequest,
             ) -> Result<Response<CommitResponse>, Status> {
                 Ok(Response::new(CommitResponse { success: true, commit_timestamp: 0 }))
             }
 
             pub async fn rollback_transaction(
                 &mut self,
-                request: RollbackRequest,
+                _request: RollbackRequest,
             ) -> Result<Response<RollbackResponse>, Status> {
                 Ok(Response::new(RollbackResponse { success: true }))
             }
 
             pub async fn get_cluster_status(
                 &mut self,
-                request: StatusRequest,
+                _request: StatusRequest,
             ) -> Result<Response<StatusResponse>, Status> {
                 Ok(Response::new(StatusResponse {
                     status: Some(ClusterStatus {
@@ -248,7 +252,7 @@ pub mod proto {
 
             pub async fn heartbeat(
                 &mut self,
-                request: HeartbeatRequest,
+                _request: HeartbeatRequest,
             ) -> Result<Response<HeartbeatResponse>, Status> {
                 Ok(Response::new(HeartbeatResponse {
                     success: true,
@@ -258,7 +262,7 @@ pub mod proto {
 
             pub async fn get_cluster_topology(
                 &mut self,
-                request: TopologyRequest,
+                _request: TopologyRequest,
             ) -> Result<Response<TopologyResponse>, Status> {
                 Ok(Response::new(TopologyResponse { nodes: vec![] }))
             }
