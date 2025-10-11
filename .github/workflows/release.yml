@@ -98,13 +98,33 @@ jobs:
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
 
+    - name: Check Docker Hub secrets
+      id: check-secrets
+      run: |
+        if [ -z "${{ secrets.DOCKERHUB_USERNAME }}" ] || [ -z "${{ secrets.DOCKERHUB_TOKEN }}" ]; then
+          echo "⚠️ Docker Hub secrets not configured, skipping Docker release"
+          echo "To enable Docker Hub publishing, configure DOCKERHUB_USERNAME and DOCKERHUB_TOKEN secrets"
+          echo "skip=true" >> $GITHUB_OUTPUT
+        else
+          echo "✅ Docker Hub secrets found, proceeding with release"
+          echo "skip=false" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Skip Docker release notice
+      if: steps.check-secrets.outputs.skip == 'true'
+      run: |
+        echo "🐳 Docker release skipped - secrets not configured"
+        echo "This is normal if you haven't set up Docker Hub publishing yet"
+
     - name: Log in to Docker Hub
+      if: steps.check-secrets.outputs.skip == 'false'
       uses: docker/login-action@v3
       with:
         username: ${{ secrets.DOCKERHUB_USERNAME }}
         password: ${{ secrets.DOCKERHUB_TOKEN }}
 
     - name: Extract metadata
+      if: steps.check-secrets.outputs.skip == 'false'
       id: meta
       uses: docker/metadata-action@v5
       with:
@@ -114,6 +134,7 @@ jobs:
           type=raw,value=latest,enable={{is_default_branch}}
 
     - name: Build and push Docker image
+      if: steps.check-secrets.outputs.skip == 'false'
       uses: docker/build-push-action@v5
       with:
         context: .
@@ -129,6 +150,7 @@ jobs:
     name: Create Release
     runs-on: ubuntu-latest
     needs: [release-build, docker-release]
+    if: always() && needs.release-build.result == 'success'
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
