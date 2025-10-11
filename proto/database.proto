@@ -506,7 +506,7 @@ enum UpdateType {
 }
 
 enum DataType {
-  UNKNOWN = 0;
+  UNKNOWN_TYPE = 0;
   BOOLEAN = 1;
   INT32 = 2;
   INT64 = 3;

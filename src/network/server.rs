@@ -6,7 +6,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use shardforge_core::{Result, ShardForgeError};
 use tokio::sync::RwLock;
-use tonic::{transport::Server, Request, Response, Status};
+use tonic::{Request, Response, Status};
 
 use crate::network::protocol::proto;
 use crate::network::NetworkConfig;

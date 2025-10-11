@@ -60,7 +60,8 @@ async fn bench_single_operations(engine: &Box<dyn StorageEngine>, c: &mut Criter
         let runtime = tokio::runtime::Runtime::new().unwrap();
         b.iter(|| {
             let key = Key::from_string("large_key");
-            let value = Value::new(vec![42; 1024 * 10]); // 10KB
+            let data = vec![42; 1024 * 10]; // 10KB
+            let value = Value::new(&data);
             runtime.block_on(async {
                 black_box(engine.put(key, value).await.unwrap());
             });
@@ -72,7 +73,8 @@ async fn bench_single_operations(engine: &Box<dyn StorageEngine>, c: &mut Criter
         let runtime = tokio::runtime::Runtime::new().unwrap();
         runtime.block_on(async {
             let key = Key::from_string("large_key");
-            let value = Value::new(vec![42; 1024 * 10]); // 10KB
+            let data = vec![42; 1024 * 10]; // 10KB
+            let value = Value::new(&data);
             engine.put(key, value).await.unwrap();
         });
 

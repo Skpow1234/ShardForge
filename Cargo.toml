@@ -27,6 +27,7 @@ path = "bin/shardforge.rs"
 default = ["sled"]
 rocksdb = ["dep:rocksdb", "shardforge-storage/rocksdb"]
 sled = ["dep:sled", "shardforge-storage/sled"]
+grpc-enabled = []
 
 [dependencies]
 # Workspace crates

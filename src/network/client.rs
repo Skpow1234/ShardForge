@@ -1,6 +1,6 @@
 //! gRPC client for connecting to other ShardForge nodes
 
-use std::time::Duration;
+// use std::time::Duration; // TODO: Remove when implementing timeout functionality
 
 use shardforge_core::{NodeId, Result, ShardForgeError};
 use tonic::transport::Channel;
@@ -75,7 +75,7 @@ impl DatabaseClient {
     pub async fn commit_transaction(
         &mut self,
         transaction_id: String,
-        commit_timestamp: u64,
+        _commit_timestamp: u64,
     ) -> Result<proto::CommitResponse> {
         let request = proto::CommitRequest { transaction_id };
 
@@ -92,7 +92,7 @@ impl DatabaseClient {
     pub async fn rollback_transaction(
         &mut self,
         transaction_id: String,
-        reason: String,
+        _reason: String,
     ) -> Result<proto::RollbackResponse> {
         let request = proto::RollbackRequest { transaction_id };
 
@@ -125,7 +125,7 @@ impl DatabaseClient {
     pub async fn heartbeat(
         &mut self,
         node_id: String,
-        timestamp: u64,
+        _timestamp: u64,
         status: proto::NodeStatus,
     ) -> Result<proto::HeartbeatResponse> {
         let request = proto::HeartbeatRequest { node_id, status };
