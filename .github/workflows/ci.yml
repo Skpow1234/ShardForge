@@ -266,14 +266,7 @@ jobs:
           echo "📋 Checking .dockerignore:"
           cat .dockerignore
           echo "📋 Testing docker build context:"
-          docker build --dry-run -f Dockerfile . 2>&1 | head -20 || echo "Dry run failed, continuing..."
-          echo "📋 Debug build context with debug Dockerfile:"
           docker build -f Dockerfile.debug -t debug-context . || echo "Debug build failed"
-          echo "📋 Testing with minimal .dockerignore:"
-          cp .dockerignore .dockerignore.backup
-          cp .dockerignore.minimal .dockerignore
-          docker build -f Dockerfile.debug -t debug-context-minimal . || echo "Minimal debug build failed"
-          cp .dockerignore.backup .dockerignore
 
       - name: Build Docker image (optimized)
         uses: docker/build-push-action@v5

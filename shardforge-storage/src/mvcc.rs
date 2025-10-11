@@ -159,11 +159,8 @@ impl MVCCStorage {
         // Check for write-write conflicts
         if let Some(versions_list) = versions.get(&key) {
             for version in versions_list.iter().rev() {
-                // If there's an uncommitted write by another transaction after our snapshot
-                if version.timestamp > timestamp
-                    && version.transaction_id != transaction_id
-                    && !version.committed
-                {
+                // If there's an uncommitted write by another transaction
+                if version.transaction_id != transaction_id && !version.committed {
                     return Err(ShardForgeError::Transaction {
                         message: format!("Write-write conflict detected for key {:?}", key),
                     });
@@ -344,7 +341,7 @@ mod tests {
         assert_eq!(versions.len(), 2);
 
         // Run garbage collection
-        let collected = mvcc.garbage_collect().await.unwrap();
+        let _collected = mvcc.garbage_collect().await.unwrap();
 
         // After GC, should still have at least 1 version (the latest committed)
         let versions = mvcc.get_versions(&key).await;
