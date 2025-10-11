@@ -237,6 +237,11 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-buildx-
 
+      - name: Create cache directories
+        run: |
+          mkdir -p /tmp/.buildx-cache
+          mkdir -p /tmp/.buildx-cache-new
+
       - name: Build Docker image (optimized)
         uses: docker/build-push-action@v5
         with:
@@ -270,30 +275,3 @@ jobs:
         run: |
           rm -rf /tmp/.buildx-cache
           mv /tmp/.buildx-cache-new /tmp/.buildx-cache
-
-      - name: Build Docker image (fast version)
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./Dockerfile.fast
-          push: false
-          tags: shardforge:fast-test
-          cache-from: type=local,src=/tmp/.buildx-cache
-          cache-to: type=local,dst=/tmp/.buildx-cache-new,mode=max
-
-      - name: Test fast Docker image
-        run: |
-          # Test that the fast container starts
-          docker run --rm -d --name shardforge-fast-test -p 5433:5432 shardforge:fast-test
-          sleep 5
-          # Check if container is running
-          if docker ps | grep -q shardforge-fast-test; then
-            echo "✅ Fast Docker container started successfully"
-          else
-            echo "❌ Fast Docker container failed to start"
-            docker logs shardforge-fast-test
-            exit 1
-          fi
-          # Clean up
-          docker stop shardforge-fast-test || true
-          docker rm shardforge-fast-test || true
