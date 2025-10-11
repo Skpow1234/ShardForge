@@ -250,18 +250,6 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Cache Docker layers
-        uses: actions/cache@v4
-        with:
-          path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-buildx-
-
-      - name: Create cache directories
-        run: |
-          mkdir -p /tmp/.buildx-cache
-          mkdir -p /tmp/.buildx-cache-new
 
       - name: Build Docker image (optimized)
         uses: docker/build-push-action@v5
@@ -270,8 +258,8 @@ jobs:
           file: ./Dockerfile
           push: false
           tags: shardforge:test
-          cache-from: type=local,src=/tmp/.buildx-cache
-          cache-to: type=local,dst=/tmp/.buildx-cache-new,mode=max
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
           build-args: |
             BUILDKIT_INLINE_CACHE=1
 
@@ -291,8 +279,3 @@ jobs:
           # Clean up
           docker stop shardforge-test || true
           docker rm shardforge-test || true
-
-      - name: Move cache
-        run: |
-          rm -rf /tmp/.buildx-cache
-          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
