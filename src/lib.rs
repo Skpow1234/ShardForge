@@ -28,6 +28,7 @@ pub use shardforge_storage as storage;
 
 // Local modules
 pub mod network;
+pub mod raft;
 pub mod sql;
 pub mod transaction;
 

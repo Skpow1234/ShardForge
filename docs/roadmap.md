@@ -61,11 +61,11 @@ ShardForge development follows a phased approach over 36 months, focusing on inc
 
 #### Month 9-11: RAFT Consensus
 
-- [ ] RAFT algorithm implementation with leader election
-- [ ] Log replication with flow control
-- [ ] Membership changes and configuration updates
-- [ ] Snapshot support for state machine
-- [ ] Multi-node cluster formation and management
+- [x] RAFT algorithm implementation with leader election
+- [x] Log replication with flow control
+- [x] Membership changes and configuration updates (partial)
+- [x] Snapshot support for state machine
+- [x] Multi-node cluster formation and management (in progress)
 
 #### Month 12-14: Sharding & Data Distribution
 
