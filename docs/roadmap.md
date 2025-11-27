@@ -40,8 +40,8 @@ ShardForge development follows a phased approach over 36 months, focusing on inc
 
 #### Month 7-8: CLI & Ecosystem
 
-- [x] Comprehensive CLI tool with interactive shell (structure complete, features pending)
-- [ ] Import/export utilities (CSV, JSON)
+- [x] Comprehensive CLI tool with interactive shell
+- [x] Import/export utilities (CSV, JSON)
 - [x] Basic monitoring and metrics (framework in place)
 - [x] Docker containerization
 - [x] Documentation and examples
