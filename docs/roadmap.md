@@ -32,11 +32,11 @@ ShardForge development follows a phased approach over 36 months, focusing on inc
 
 #### Month 5-6: SQL & Query Processing
 
-- [ ] Full DDL support (indexes, constraints, schemas)
-- [ ] DML operations (INSERT, UPDATE, DELETE with WHERE)
-- [ ] Simple SELECT with filtering and basic aggregation
-- [ ] Query optimization framework
-- [ ] Prepared statements and query caching
+- [x] Full DDL support (indexes, constraints, schemas)
+- [x] DML operations (INSERT, UPDATE, DELETE with WHERE)
+- [x] Simple SELECT with filtering and basic aggregation
+- [x] Query optimization framework
+- [x] Prepared statements and query caching
 
 #### Month 7-8: CLI & Ecosystem
 

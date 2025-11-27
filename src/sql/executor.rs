@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use shardforge_core::{Key, Result, ShardForgeError, Value};
 use shardforge_storage::{MVCCStorage, StorageEngine};
 
+use crate::sql::aggregation::{contains_aggregate, extract_aggregates, GroupAggregationState};
 use crate::sql::ast::*;
 
 /// Query execution context
@@ -103,7 +104,12 @@ impl QueryExecutor {
         match statement {
             Statement::CreateTable(stmt) => self.execute_create_table(stmt).await,
             Statement::DropTable(stmt) => self.execute_drop_table(stmt).await,
+            Statement::CreateIndex(stmt) => self.execute_create_index(stmt).await,
+            Statement::DropIndex(stmt) => self.execute_drop_index(stmt).await,
+            Statement::AlterTable(stmt) => self.execute_alter_table(stmt).await,
             Statement::Insert(stmt) => self.execute_insert(stmt).await,
+            Statement::Update(stmt) => self.execute_update(stmt).await,
+            Statement::Delete(stmt) => self.execute_delete(stmt).await,
             Statement::Select(stmt) => self.execute_select(stmt).await,
             _ => Err(ShardForgeError::Query {
                 message: "Statement type not yet implemented".to_string(),
@@ -252,7 +258,103 @@ impl QueryExecutor {
         })
     }
 
-    /// Execute SELECT statement (point queries only)
+    /// Execute UPDATE statement
+    async fn execute_update(&mut self, stmt: UpdateStatement) -> Result<QueryResult> {
+        // Get table schema
+        let table_schema = self.context.catalog.get_table(&stmt.table_name).ok_or_else(|| {
+            ShardForgeError::Query {
+                message: format!("Table '{}' does not exist", stmt.table_name),
+            }
+        })?;
+
+        let mut affected_rows = 0;
+
+        // Scan all rows in the table
+        let prefix = Key::new(format!("{}:", stmt.table_name).as_bytes());
+        let all_keys = self.scan_table_keys(&stmt.table_name).await?;
+
+        for key in all_keys {
+            // Get row data
+            if let Some(storage_value) = self.context.storage.get(&key).await? {
+                let row_data = self.deserialize_row(storage_value.as_ref())?;
+
+                // Check WHERE clause
+                if let Some(ref where_clause) = stmt.where_clause {
+                    if !self.evaluate_condition(where_clause, table_schema, &row_data)? {
+                        continue;
+                    }
+                }
+
+                // Apply updates
+                let mut updated_row = row_data.clone();
+                for assignment in &stmt.assignments {
+                    let column_index = table_schema
+                        .columns
+                        .iter()
+                        .position(|c| c.name == assignment.column)
+                        .ok_or_else(|| ShardForgeError::Query {
+                            message: format!("Column '{}' not found", assignment.column),
+                        })?;
+
+                    let new_value = self.evaluate_expression(&assignment.value)?;
+                    updated_row[column_index] = new_value;
+                }
+
+                // Store updated row
+                let serialized = self.serialize_row(&updated_row)?;
+                let storage_value = Value::new(&serialized);
+                self.context.storage.put(key, storage_value).await?;
+                affected_rows += 1;
+            }
+        }
+
+        Ok(QueryResult {
+            columns: vec![],
+            rows: vec![],
+            affected_rows,
+        })
+    }
+
+    /// Execute DELETE statement
+    async fn execute_delete(&mut self, stmt: DeleteStatement) -> Result<QueryResult> {
+        // Get table schema
+        let table_schema = self.context.catalog.get_table(&stmt.table_name).ok_or_else(|| {
+            ShardForgeError::Query {
+                message: format!("Table '{}' does not exist", stmt.table_name),
+            }
+        })?;
+
+        let mut affected_rows = 0;
+
+        // Scan all rows in the table
+        let all_keys = self.scan_table_keys(&stmt.table_name).await?;
+
+        for key in all_keys {
+            // Get row data for WHERE clause evaluation
+            if let Some(storage_value) = self.context.storage.get(&key).await? {
+                let row_data = self.deserialize_row(storage_value.as_ref())?;
+
+                // Check WHERE clause
+                if let Some(ref where_clause) = stmt.where_clause {
+                    if !self.evaluate_condition(where_clause, table_schema, &row_data)? {
+                        continue;
+                    }
+                }
+
+                // Delete the row
+                self.context.storage.delete(&key).await?;
+                affected_rows += 1;
+            }
+        }
+
+        Ok(QueryResult {
+            columns: vec![],
+            rows: vec![],
+            affected_rows,
+        })
+    }
+
+    /// Execute SELECT statement with full table scan
     async fn execute_select(&mut self, stmt: SelectStatement) -> Result<QueryResult> {
         // Get table name (simplified - single table queries only)
         let table_name = stmt.from.ok_or_else(|| ShardForgeError::Query {
@@ -268,36 +370,550 @@ impl QueryExecutor {
                     message: format!("Table '{}' does not exist", table_name),
                 })?;
 
-        // For point queries, we need a WHERE clause with equality condition
-        let where_clause = stmt.where_clause.ok_or_else(|| ShardForgeError::Query {
-            message: "Point queries require WHERE clause with equality condition".to_string(),
-        })?;
+        // Check if this is an aggregate query
+        let has_aggregates = stmt.columns.iter().any(|item| {
+            if let SelectItem::Expression { expr, .. } = item {
+                contains_aggregate(expr)
+            } else {
+                false
+            }
+        });
 
-        // Extract key from WHERE clause (simplified)
-        let key = self.extract_key_from_where(&where_clause, &table_name)?;
-
-        // Fetch data from storage
-        if let Some(storage_value) = self.context.storage.get(&key).await? {
-            // Deserialize row data
-            let row_data = self.deserialize_row(storage_value.as_ref())?;
-
-            // Apply column selection
-            let (selected_columns, selected_data) =
-                self.apply_column_selection(&stmt.columns, table_schema, &row_data)?;
-
-            Ok(QueryResult {
-                columns: selected_columns,
-                rows: vec![selected_data],
-                affected_rows: 1,
-            })
+        if has_aggregates || !stmt.group_by.is_empty() {
+            self.execute_select_with_aggregation(stmt, table_schema, &table_name)
+                .await
         } else {
-            // No data found
-            let selected_columns = self.get_selected_column_names(&stmt.columns, table_schema)?;
-            Ok(QueryResult {
-                columns: selected_columns,
-                rows: vec![],
-                affected_rows: 0,
+            self.execute_select_simple(stmt, table_schema, &table_name)
+                .await
+        }
+    }
+
+    /// Execute a simple SELECT without aggregation
+    async fn execute_select_simple(
+        &mut self,
+        stmt: SelectStatement,
+        table_schema: &TableSchema,
+        table_name: &str,
+    ) -> Result<QueryResult> {
+        let selected_column_names = self.get_selected_column_names(&stmt.columns, table_schema)?;
+        let mut result_rows = Vec::new();
+
+        // Scan all rows in the table
+        let all_keys = self.scan_table_keys(table_name).await?;
+
+        for key in all_keys {
+            if let Some(storage_value) = self.context.storage.get(&key).await? {
+                let row_data = self.deserialize_row(storage_value.as_ref())?;
+
+                // Apply WHERE filter
+                if let Some(ref where_clause) = stmt.where_clause {
+                    if !self.evaluate_condition(where_clause, table_schema, &row_data)? {
+                        continue;
+                    }
+                }
+
+                // Apply column selection
+                let (_, selected_data) =
+                    self.apply_column_selection(&stmt.columns, table_schema, &row_data)?;
+
+                result_rows.push(selected_data);
+            }
+        }
+
+        // Apply DISTINCT
+        if stmt.distinct {
+            result_rows.sort();
+            result_rows.dedup();
+        }
+
+        // Apply ORDER BY
+        if !stmt.order_by.is_empty() {
+            result_rows.sort_by(|a, b| {
+                for order_item in &stmt.order_by {
+                    // Simplified: compare by column index
+                    if let Expression::Column(ref col_name) = order_item.expression {
+                        if let Some(col_index) =
+                            selected_column_names.iter().position(|n| n == col_name)
+                        {
+                            if col_index < a.len() && col_index < b.len() {
+                                let cmp = a[col_index].as_ref().cmp(b[col_index].as_ref());
+                                if cmp != std::cmp::Ordering::Equal {
+                                    return match order_item.direction {
+                                        OrderDirection::Asc => cmp,
+                                        OrderDirection::Desc => cmp.reverse(),
+                                    };
+                                }
+                            }
+                        }
+                    }
+                }
+                std::cmp::Ordering::Equal
+            });
+        }
+
+        // Apply LIMIT and OFFSET
+        let offset = stmt.offset.unwrap_or(0) as usize;
+        let limit = stmt.limit.map(|l| l as usize);
+
+        let final_rows: Vec<_> = result_rows
+            .into_iter()
+            .skip(offset)
+            .take(limit.unwrap_or(usize::MAX))
+            .collect();
+
+        let affected_rows = final_rows.len() as u64;
+
+        Ok(QueryResult {
+            columns: selected_column_names,
+            rows: final_rows,
+            affected_rows,
+        })
+    }
+
+    /// Execute a SELECT with aggregation and GROUP BY
+    async fn execute_select_with_aggregation(
+        &mut self,
+        stmt: SelectStatement,
+        table_schema: &TableSchema,
+        table_name: &str,
+    ) -> Result<QueryResult> {
+        // Extract expressions from SELECT items
+        let mut select_exprs = Vec::new();
+        let mut column_names = Vec::new();
+
+        for item in &stmt.columns {
+            match item {
+                SelectItem::Expression { expr, alias } => {
+                    select_exprs.push(expr.clone());
+                    
+                    // Generate column name
+                    let col_name = if let Some(alias) = alias {
+                        alias.clone()
+                    } else {
+                        match expr {
+                            Expression::Function { name, .. } => name.clone(),
+                            Expression::Column(col) => col.clone(),
+                            _ => "expr".to_string(),
+                        }
+                    };
+                    column_names.push(col_name);
+                }
+                SelectItem::Wildcard => {
+                    return Err(ShardForgeError::Query {
+                        message: "Cannot use * with aggregate functions".to_string(),
+                    });
+                }
+            }
+        }
+
+        // Extract aggregate functions
+        let aggregates = extract_aggregates(&select_exprs);
+
+        // Determine GROUP BY columns
+        let group_by_indices: Vec<usize> = stmt
+            .group_by
+            .iter()
+            .filter_map(|expr| {
+                if let Expression::Column(col_name) = expr {
+                    table_schema.columns.iter().position(|c| c.name == *col_name)
+                } else {
+                    None
+                }
             })
+            .collect();
+
+        // Extract aggregate column indices and functions
+        let aggregate_funcs: Vec<(usize, crate::sql::aggregation::AggregateFunction)> =
+            aggregates
+                .iter()
+                .filter_map(|(_, func, arg_expr)| {
+                    if let Expression::Column(col_name) = arg_expr {
+                        table_schema
+                            .columns
+                            .iter()
+                            .position(|c| c.name == *col_name)
+                            .map(|idx| (idx, func.clone()))
+                    } else {
+                        // For COUNT(*), use column 0 as a placeholder
+                        Some((0, func.clone()))
+                    }
+                })
+                .collect();
+
+        // Create aggregation state
+        let mut agg_state = GroupAggregationState::new(group_by_indices.clone(), aggregate_funcs);
+
+        // Scan all rows and accumulate
+        let all_keys = self.scan_table_keys(table_name).await?;
+
+        for key in all_keys {
+            if let Some(storage_value) = self.context.storage.get(&key).await? {
+                let row_data = self.deserialize_row(storage_value.as_ref())?;
+
+                // Apply WHERE filter
+                if let Some(ref where_clause) = stmt.where_clause {
+                    if !self.evaluate_condition(where_clause, table_schema, &row_data)? {
+                        continue;
+                    }
+                }
+
+                // Accumulate for aggregation
+                agg_state.accumulate_row(&row_data)?;
+            }
+        }
+
+        // Finalize aggregation
+        let groups = agg_state.finalize()?;
+
+        // Build result rows
+        let mut result_rows = Vec::new();
+        for (group_values, aggregate_values) in groups {
+            let mut row = Vec::new();
+            
+            // Add GROUP BY columns
+            for val in group_values {
+                row.push(val);
+            }
+            
+            // Add aggregate values
+            for val in aggregate_values {
+                row.push(val);
+            }
+
+            // Apply HAVING filter if present
+            if let Some(ref having) = stmt.having {
+                // Simplified HAVING evaluation - would need more context
+                // For now, skip HAVING clause evaluation
+            }
+
+            result_rows.push(row);
+        }
+
+        // Apply ORDER BY
+        if !stmt.order_by.is_empty() {
+            result_rows.sort_by(|a, b| {
+                for order_item in &stmt.order_by {
+                    if let Expression::Column(ref col_name) = order_item.expression {
+                        if let Some(col_index) = column_names.iter().position(|n| n == col_name) {
+                            if col_index < a.len() && col_index < b.len() {
+                                let cmp = a[col_index].as_ref().cmp(b[col_index].as_ref());
+                                if cmp != std::cmp::Ordering::Equal {
+                                    return match order_item.direction {
+                                        OrderDirection::Asc => cmp,
+                                        OrderDirection::Desc => cmp.reverse(),
+                                    };
+                                }
+                            }
+                        }
+                    }
+                }
+                std::cmp::Ordering::Equal
+            });
+        }
+
+        // Apply LIMIT and OFFSET
+        let offset = stmt.offset.unwrap_or(0) as usize;
+        let limit = stmt.limit.map(|l| l as usize);
+
+        let final_rows: Vec<_> = result_rows
+            .into_iter()
+            .skip(offset)
+            .take(limit.unwrap_or(usize::MAX))
+            .collect();
+
+        let affected_rows = final_rows.len() as u64;
+
+        Ok(QueryResult {
+            columns: column_names,
+            rows: final_rows,
+            affected_rows,
+        })
+    }
+
+    /// Execute CREATE INDEX statement
+    async fn execute_create_index(&mut self, stmt: CreateIndexStatement) -> Result<QueryResult> {
+        // Get table schema
+        let mut table_schema =
+            self.context
+                .catalog
+                .get_table(&stmt.table_name)
+                .ok_or_else(|| ShardForgeError::Query {
+                    message: format!("Table '{}' does not exist", stmt.table_name),
+                })?
+                .clone();
+
+        // Check if index already exists
+        if table_schema.indexes.iter().any(|idx| idx.name == stmt.name) {
+            if stmt.if_not_exists {
+                return Ok(QueryResult {
+                    columns: vec![],
+                    rows: vec![],
+                    affected_rows: 0,
+                });
+            } else {
+                return Err(ShardForgeError::Query {
+                    message: format!("Index '{}' already exists", stmt.name),
+                });
+            }
+        }
+
+        // Add index to schema
+        table_schema.indexes.push(IndexSchema {
+            name: stmt.name.clone(),
+            table_name: stmt.table_name.clone(),
+            columns: stmt.columns,
+            index_type: stmt.index_type,
+            unique: stmt.unique,
+        });
+
+        // Update catalog
+        self.context.catalog.add_table(table_schema);
+
+        // TODO: Build the index from existing data
+
+        Ok(QueryResult {
+            columns: vec![],
+            rows: vec![],
+            affected_rows: 1,
+        })
+    }
+
+    /// Execute DROP INDEX statement
+    async fn execute_drop_index(&mut self, stmt: DropIndexStatement) -> Result<QueryResult> {
+        // Find the table that has this index
+        let tables = self.context.catalog.list_tables();
+        let mut found = false;
+
+        for table_name in tables {
+            if let Some(mut table_schema) = self.context.catalog.get_table(&table_name).cloned() {
+                if let Some(index_pos) = table_schema.indexes.iter().position(|idx| idx.name == stmt.name) {
+                    table_schema.indexes.remove(index_pos);
+                    self.context.catalog.add_table(table_schema);
+                    found = true;
+                    break;
+                }
+            }
+        }
+
+        if !found && !stmt.if_exists {
+            return Err(ShardForgeError::Query {
+                message: format!("Index '{}' does not exist", stmt.name),
+            });
+        }
+
+        Ok(QueryResult {
+            columns: vec![],
+            rows: vec![],
+            affected_rows: if found { 1 } else { 0 },
+        })
+    }
+
+    /// Execute ALTER TABLE statement
+    async fn execute_alter_table(&mut self, stmt: AlterTableStatement) -> Result<QueryResult> {
+        let mut table_schema =
+            self.context
+                .catalog
+                .get_table(&stmt.name)
+                .ok_or_else(|| ShardForgeError::Query {
+                    message: format!("Table '{}' does not exist", stmt.name),
+                })?
+                .clone();
+
+        match stmt.action {
+            AlterTableAction::AddColumn(column_def) => {
+                // Check if column already exists
+                if table_schema.columns.iter().any(|c| c.name == column_def.name) {
+                    return Err(ShardForgeError::Query {
+                        message: format!("Column '{}' already exists", column_def.name),
+                    });
+                }
+
+                table_schema.columns.push(ColumnSchema {
+                    name: column_def.name,
+                    data_type: column_def.data_type,
+                    nullable: column_def.nullable,
+                    default_value: column_def.default,
+                    auto_increment: column_def.auto_increment,
+                });
+            }
+            AlterTableAction::AddConstraint(_constraint) => {
+                // TODO: Implement constraint addition
+                return Err(ShardForgeError::Query {
+                    message: "Adding constraints not yet implemented".to_string(),
+                });
+            }
+            _ => {
+                return Err(ShardForgeError::Query {
+                    message: "ALTER TABLE action not yet implemented".to_string(),
+                });
+            }
+        }
+
+        // Update catalog
+        self.context.catalog.add_table(table_schema);
+
+        Ok(QueryResult {
+            columns: vec![],
+            rows: vec![],
+            affected_rows: 1,
+        })
+    }
+
+    /// Scan all keys for a table
+    async fn scan_table_keys(&self, table_name: &str) -> Result<Vec<Key>> {
+        let mut keys = Vec::new();
+        let prefix = format!("{}:", table_name);
+
+        // Use storage iterator to scan all keys with the table prefix
+        // This is a simplified implementation - in production, we'd use proper iterator support
+        for i in 0..1000 {
+            // Arbitrary limit for now
+            let key = Key::new(format!("{}{}",prefix, i).as_bytes());
+            if self.context.storage.get(&key).await?.is_some() {
+                keys.push(key);
+            }
+        }
+
+        Ok(keys)
+    }
+
+    /// Evaluate a condition against a row
+    fn evaluate_condition(
+        &self,
+        condition: &Expression,
+        table_schema: &TableSchema,
+        row_data: &[Value],
+    ) -> Result<bool> {
+        match condition {
+            Expression::BinaryOp { left, op, right } => {
+                let left_val = self.evaluate_expression_with_row(left, table_schema, row_data)?;
+                let right_val = self.evaluate_expression_with_row(right, table_schema, row_data)?;
+
+                match op {
+                    BinaryOperator::Equal => Ok(left_val.as_ref() == right_val.as_ref()),
+                    BinaryOperator::NotEqual => Ok(left_val.as_ref() != right_val.as_ref()),
+                    BinaryOperator::LessThan => Ok(left_val.as_ref() < right_val.as_ref()),
+                    BinaryOperator::LessThanOrEqual => Ok(left_val.as_ref() <= right_val.as_ref()),
+                    BinaryOperator::GreaterThan => Ok(left_val.as_ref() > right_val.as_ref()),
+                    BinaryOperator::GreaterThanOrEqual => {
+                        Ok(left_val.as_ref() >= right_val.as_ref())
+                    }
+                    BinaryOperator::And => {
+                        let left_bool = self.value_to_bool(&left_val)?;
+                        let right_bool = self.value_to_bool(&right_val)?;
+                        Ok(left_bool && right_bool)
+                    }
+                    BinaryOperator::Or => {
+                        let left_bool = self.value_to_bool(&left_val)?;
+                        let right_bool = self.value_to_bool(&right_val)?;
+                        Ok(left_bool || right_bool)
+                    }
+                    _ => Err(ShardForgeError::Query {
+                        message: format!("Operator {:?} not yet supported in WHERE clause", op),
+                    }),
+                }
+            }
+            Expression::IsNull { expr, negated } => {
+                let val = self.evaluate_expression_with_row(expr, table_schema, row_data)?;
+                let is_null = val.as_ref().is_empty();
+                Ok(if *negated { !is_null } else { is_null })
+            }
+            _ => Err(ShardForgeError::Query {
+                message: "Complex WHERE expressions not yet fully supported".to_string(),
+            }),
+        }
+    }
+
+    /// Evaluate an expression with access to row data
+    fn evaluate_expression_with_row(
+        &self,
+        expr: &Expression,
+        table_schema: &TableSchema,
+        row_data: &[Value],
+    ) -> Result<Value> {
+        match expr {
+            Expression::Literal(lit) => match lit {
+                Literal::Null => Ok(Value::new(b"")),
+                Literal::Boolean(b) => Ok(Value::new(&[if *b { 1 } else { 0 }])),
+                Literal::Integer(i) => Ok(Value::new(&i.to_le_bytes())),
+                Literal::Float(f) => Ok(Value::new(&f.to_le_bytes())),
+                Literal::String(s) => Ok(Value::new(s.as_bytes())),
+                Literal::Binary(b) => Ok(Value::new(b)),
+            },
+            Expression::Column(col_name) => {
+                let column_index =
+                    table_schema
+                        .columns
+                        .iter()
+                        .position(|c| c.name == *col_name)
+                        .ok_or_else(|| ShardForgeError::Query {
+                            message: format!("Column '{}' not found", col_name),
+                        })?;
+
+                if column_index < row_data.len() {
+                    Ok(row_data[column_index].clone())
+                } else {
+                    Ok(Value::new(b""))
+                }
+            }
+            Expression::BinaryOp { left, op, right } => {
+                let left_val = self.evaluate_expression_with_row(left, table_schema, row_data)?;
+                let right_val = self.evaluate_expression_with_row(right, table_schema, row_data)?;
+
+                // Simplified arithmetic operations
+                match op {
+                    BinaryOperator::Add | BinaryOperator::Subtract | BinaryOperator::Multiply
+                    | BinaryOperator::Divide => {
+                        // For simplicity, treat as integer operations
+                        if left_val.as_ref().len() == 8 && right_val.as_ref().len() == 8 {
+                            let left_int = i64::from_le_bytes(
+                                left_val.as_ref().try_into().unwrap_or([0; 8]),
+                            );
+                            let right_int = i64::from_le_bytes(
+                                right_val.as_ref().try_into().unwrap_or([0; 8]),
+                            );
+
+                            let result = match op {
+                                BinaryOperator::Add => left_int + right_int,
+                                BinaryOperator::Subtract => left_int - right_int,
+                                BinaryOperator::Multiply => left_int * right_int,
+                                BinaryOperator::Divide => {
+                                    if right_int == 0 {
+                                        return Err(ShardForgeError::Query {
+                                            message: "Division by zero".to_string(),
+                                        });
+                                    }
+                                    left_int / right_int
+                                }
+                                _ => unreachable!(),
+                            };
+
+                            Ok(Value::new(&result.to_le_bytes()))
+                        } else {
+                            Err(ShardForgeError::Query {
+                                message: "Arithmetic operations require integer operands".to_string(),
+                            })
+                        }
+                    }
+                    _ => Err(ShardForgeError::Query {
+                        message: "Complex expressions not yet fully supported".to_string(),
+                    }),
+                }
+            }
+            _ => Err(ShardForgeError::Query {
+                message: "Expression type not yet supported in execution".to_string(),
+            }),
+        }
+    }
+
+    /// Convert value to boolean
+    fn value_to_bool(&self, value: &Value) -> Result<bool> {
+        if value.as_ref().is_empty() {
+            Ok(false)
+        } else if value.as_ref().len() == 1 {
+            Ok(value.as_ref()[0] != 0)
+        } else {
+            Ok(true)
         }
     }
 

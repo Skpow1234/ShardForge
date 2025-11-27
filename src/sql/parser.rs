@@ -57,6 +57,10 @@ pub enum Token {
     Null,
     Auto,
     Increment,
+    Values,
+    Set,
+    Asc,
+    Desc,
 
     // Data types
     Boolean,
@@ -424,6 +428,10 @@ impl SqlParser {
             "IN" => Token::In,
             "BETWEEN" => Token::Between,
             "IS" => Token::Is,
+            "VALUES" => Token::Values,
+            "SET" => Token::Set,
+            "ASC" => Token::Asc,
+            "DESC" => Token::Desc,
             "TRUE" => Token::BooleanLit(true),
             "FALSE" => Token::BooleanLit(false),
             _ => Token::Identifier(s),
@@ -687,68 +695,625 @@ impl SqlParser {
         }
     }
 
-    // Placeholder implementations for other parsing methods
+    // DROP statement parsing
     fn parse_drop_statement(&mut self) -> Result<Statement> {
-        Err(ShardForgeError::Parse {
-            message: "DROP statements not yet implemented".to_string(),
-        })
+        self.consume_token(Token::Drop)?;
+
+        match self.current_token() {
+            Token::Table => self.parse_drop_table_statement(),
+            Token::Index => self.parse_drop_index_statement(),
+            token => Err(ShardForgeError::Parse {
+                message: format!("Expected TABLE or INDEX after DROP, found: {:?}", token),
+            }),
+        }
     }
 
+    fn parse_drop_table_statement(&mut self) -> Result<Statement> {
+        self.consume_token(Token::Table)?;
+
+        let if_exists = if self.current_token() == &Token::If {
+            self.consume_token(Token::If)?;
+            self.consume_token(Token::Exists)?;
+            true
+        } else {
+            false
+        };
+
+        let name = self.parse_identifier()?;
+
+        let cascade = if self.current_token() == &Token::Cascade {
+            self.consume_token(Token::Cascade)?;
+            true
+        } else if self.current_token() == &Token::Restrict {
+            self.consume_token(Token::Restrict)?;
+            false
+        } else {
+            false
+        };
+
+        Ok(Statement::DropTable(DropTableStatement { if_exists, name, cascade }))
+    }
+
+    fn parse_drop_index_statement(&mut self) -> Result<Statement> {
+        self.consume_token(Token::Index)?;
+
+        let if_exists = if self.current_token() == &Token::If {
+            self.consume_token(Token::If)?;
+            self.consume_token(Token::Exists)?;
+            true
+        } else {
+            false
+        };
+
+        let name = self.parse_identifier()?;
+
+        Ok(Statement::DropIndex(DropIndexStatement { if_exists, name }))
+    }
+
+    // ALTER statement parsing
     fn parse_alter_statement(&mut self) -> Result<Statement> {
-        Err(ShardForgeError::Parse {
-            message: "ALTER statements not yet implemented".to_string(),
-        })
+        self.consume_token(Token::Alter)?;
+        self.consume_token(Token::Table)?;
+
+        let name = self.parse_identifier()?;
+
+        let action = if self.current_token() == &Token::Add {
+            self.consume_token(Token::Add)?;
+            if self.current_token() == &Token::Column {
+                self.consume_token(Token::Column)?;
+                let column_def = self.parse_column_def()?;
+                AlterTableAction::AddColumn(column_def)
+            } else if self.current_token() == &Token::Constraint {
+                let constraint = self.parse_table_constraint()?;
+                AlterTableAction::AddConstraint(constraint)
+            } else {
+                return Err(ShardForgeError::Parse {
+                    message: "Expected COLUMN or CONSTRAINT after ADD".to_string(),
+                });
+            }
+        } else {
+            return Err(ShardForgeError::Parse {
+                message: "Only ADD actions are currently supported in ALTER TABLE".to_string(),
+            });
+        };
+
+        Ok(Statement::AlterTable(AlterTableStatement { name, action }))
     }
 
+    // INSERT statement parsing
     fn parse_insert_statement(&mut self) -> Result<Statement> {
-        Err(ShardForgeError::Parse {
-            message: "INSERT statements not yet implemented".to_string(),
-        })
+        self.consume_token(Token::Insert)?;
+        self.consume_token(Token::Into)?;
+
+        let table_name = self.parse_identifier()?;
+
+        // Parse optional column list
+        let columns = if self.current_token() == &Token::LeftParen {
+            self.consume_token(Token::LeftParen)?;
+            let mut cols = Vec::new();
+
+            loop {
+                cols.push(self.parse_identifier()?);
+
+                if self.current_token() == &Token::Comma {
+                    self.advance();
+                } else {
+                    break;
+                }
+            }
+
+            self.consume_token(Token::RightParen)?;
+            Some(cols)
+        } else {
+            None
+        };
+
+        // Parse VALUES clause
+        self.consume_token(Token::Values)?;
+        let mut values = Vec::new();
+
+        loop {
+            self.consume_token(Token::LeftParen)?;
+            let mut row = Vec::new();
+
+            loop {
+                row.push(self.parse_expression()?);
+
+                if self.current_token() == &Token::Comma {
+                    self.advance();
+                } else {
+                    break;
+                }
+            }
+
+            self.consume_token(Token::RightParen)?;
+            values.push(row);
+
+            if self.current_token() == &Token::Comma {
+                self.advance();
+            } else {
+                break;
+            }
+        }
+
+        Ok(Statement::Insert(InsertStatement { table_name, columns, values }))
     }
 
+    // UPDATE statement parsing
     fn parse_update_statement(&mut self) -> Result<Statement> {
-        Err(ShardForgeError::Parse {
-            message: "UPDATE statements not yet implemented".to_string(),
-        })
+        self.consume_token(Token::Update)?;
+
+        let table_name = self.parse_identifier()?;
+
+        self.consume_token(Token::Set)?;
+
+        let mut assignments = Vec::new();
+
+        loop {
+            let column = self.parse_identifier()?;
+            self.consume_token(Token::Equals)?;
+            let value = self.parse_expression()?;
+
+            assignments.push(Assignment { column, value });
+
+            if self.current_token() == &Token::Comma {
+                self.advance();
+            } else {
+                break;
+            }
+        }
+
+        // Parse optional WHERE clause
+        let where_clause = if self.current_token() == &Token::Where {
+            self.consume_token(Token::Where)?;
+            Some(self.parse_logical_expression()?)
+        } else {
+            None
+        };
+
+        Ok(Statement::Update(UpdateStatement { table_name, assignments, where_clause }))
     }
 
+    // DELETE statement parsing
     fn parse_delete_statement(&mut self) -> Result<Statement> {
-        Err(ShardForgeError::Parse {
-            message: "DELETE statements not yet implemented".to_string(),
-        })
+        self.consume_token(Token::Delete)?;
+        self.consume_token(Token::From)?;
+
+        let table_name = self.parse_identifier()?;
+
+        // Parse optional WHERE clause
+        let where_clause = if self.current_token() == &Token::Where {
+            self.consume_token(Token::Where)?;
+            Some(self.parse_logical_expression()?)
+        } else {
+            None
+        };
+
+        Ok(Statement::Delete(DeleteStatement { table_name, where_clause }))
     }
 
+    // SELECT statement parsing
     fn parse_select_statement(&mut self) -> Result<Statement> {
-        Err(ShardForgeError::Parse {
-            message: "SELECT statements not yet implemented".to_string(),
-        })
+        self.consume_token(Token::Select)?;
+
+        // Parse DISTINCT
+        let distinct = if self.current_token() == &Token::Distinct {
+            self.consume_token(Token::Distinct)?;
+            true
+        } else {
+            false
+        };
+
+        // Parse column list
+        let mut columns = Vec::new();
+
+        loop {
+            if self.current_token() == &Token::Wildcard {
+                self.advance();
+                columns.push(SelectItem::Wildcard);
+            } else {
+                let expr = self.parse_expression()?;
+                
+                // Check for alias
+                let alias = if matches!(self.current_token(), Token::Identifier(_)) 
+                    && self.current_token() != &Token::From
+                    && self.current_token() != &Token::Where {
+                    Some(self.parse_identifier()?)
+                } else {
+                    None
+                };
+
+                columns.push(SelectItem::Expression { expr, alias });
+            }
+
+            if self.current_token() == &Token::Comma {
+                self.advance();
+            } else {
+                break;
+            }
+        }
+
+        // Parse FROM clause
+        let from = if self.current_token() == &Token::From {
+            self.consume_token(Token::From)?;
+            Some(self.parse_identifier()?)
+        } else {
+            None
+        };
+
+        // Parse WHERE clause
+        let where_clause = if self.current_token() == &Token::Where {
+            self.consume_token(Token::Where)?;
+            Some(self.parse_logical_expression()?)
+        } else {
+            None
+        };
+
+        // Parse GROUP BY clause
+        let mut group_by = Vec::new();
+        if self.current_token() == &Token::Group {
+            self.consume_token(Token::Group)?;
+            self.consume_token(Token::By)?;
+
+            loop {
+                group_by.push(self.parse_expression()?);
+
+                if self.current_token() == &Token::Comma {
+                    self.advance();
+                } else {
+                    break;
+                }
+            }
+        }
+
+        // Parse HAVING clause
+        let having = if self.current_token() == &Token::Having {
+            self.consume_token(Token::Having)?;
+            Some(self.parse_logical_expression()?)
+        } else {
+            None
+        };
+
+        // Parse ORDER BY clause
+        let mut order_by = Vec::new();
+        if self.current_token() == &Token::Order {
+            self.consume_token(Token::Order)?;
+            self.consume_token(Token::By)?;
+
+            loop {
+                let expression = self.parse_expression()?;
+                
+                let direction = if self.current_token() == &Token::Asc {
+                    self.advance();
+                    OrderDirection::Asc
+                } else if self.current_token() == &Token::Desc {
+                    self.advance();
+                    OrderDirection::Desc
+                } else {
+                    OrderDirection::Asc // Default
+                };
+
+                order_by.push(OrderByItem { expression, direction });
+
+                if self.current_token() == &Token::Comma {
+                    self.advance();
+                } else {
+                    break;
+                }
+            }
+        }
+
+        // Parse LIMIT clause
+        let limit = if self.current_token() == &Token::Limit {
+            self.consume_token(Token::Limit)?;
+            Some(self.parse_integer_literal()? as u64)
+        } else {
+            None
+        };
+
+        // Parse OFFSET clause
+        let offset = if self.current_token() == &Token::Offset {
+            self.consume_token(Token::Offset)?;
+            Some(self.parse_integer_literal()? as u64)
+        } else {
+            None
+        };
+
+        Ok(Statement::Select(SelectStatement {
+            distinct,
+            columns,
+            from,
+            where_clause,
+            group_by,
+            having,
+            order_by,
+            limit,
+            offset,
+        }))
     }
 
+    // Transaction control statements
     fn parse_begin_statement(&mut self) -> Result<Statement> {
-        Err(ShardForgeError::Parse {
-            message: "BEGIN statements not yet implemented".to_string(),
-        })
+        self.consume_token(Token::Begin)?;
+
+        Ok(Statement::Begin(BeginStatement {
+            isolation_level: None, // TODO: Parse isolation level
+            read_only: false,
+        }))
     }
 
     fn parse_commit_statement(&mut self) -> Result<Statement> {
-        Err(ShardForgeError::Parse {
-            message: "COMMIT statements not yet implemented".to_string(),
-        })
+        self.consume_token(Token::Commit)?;
+        Ok(Statement::Commit(CommitStatement))
     }
 
     fn parse_rollback_statement(&mut self) -> Result<Statement> {
-        Err(ShardForgeError::Parse {
-            message: "ROLLBACK statements not yet implemented".to_string(),
-        })
+        self.consume_token(Token::Rollback)?;
+        Ok(Statement::Rollback(RollbackStatement))
     }
 
+    // Table constraints
     fn parse_table_constraint(&mut self) -> Result<TableConstraint> {
-        Err(ShardForgeError::Parse {
-            message: "Table constraints not yet implemented".to_string(),
-        })
+        self.consume_token(Token::Constraint)?;
+
+        // Parse constraint type
+        match self.current_token() {
+            Token::Primary => {
+                self.consume_token(Token::Primary)?;
+                self.consume_token(Token::Key)?;
+                self.consume_token(Token::LeftParen)?;
+
+                let mut columns = Vec::new();
+                loop {
+                    columns.push(self.parse_identifier()?);
+
+                    if self.current_token() == &Token::Comma {
+                        self.advance();
+                    } else {
+                        break;
+                    }
+                }
+
+                self.consume_token(Token::RightParen)?;
+
+                Ok(TableConstraint::PrimaryKey { columns })
+            }
+            Token::Foreign => {
+                self.consume_token(Token::Foreign)?;
+                self.consume_token(Token::Key)?;
+                self.consume_token(Token::LeftParen)?;
+
+                let mut columns = Vec::new();
+                loop {
+                    columns.push(self.parse_identifier()?);
+
+                    if self.current_token() == &Token::Comma {
+                        self.advance();
+                    } else {
+                        break;
+                    }
+                }
+
+                self.consume_token(Token::RightParen)?;
+                self.consume_token(Token::References)?;
+
+                let referenced_table = self.parse_identifier()?;
+                self.consume_token(Token::LeftParen)?;
+
+                let mut referenced_columns = Vec::new();
+                loop {
+                    referenced_columns.push(self.parse_identifier()?);
+
+                    if self.current_token() == &Token::Comma {
+                        self.advance();
+                    } else {
+                        break;
+                    }
+                }
+
+                self.consume_token(Token::RightParen)?;
+
+                Ok(TableConstraint::ForeignKey {
+                    columns,
+                    referenced_table,
+                    referenced_columns,
+                    on_delete: None, // TODO: Parse ON DELETE
+                    on_update: None, // TODO: Parse ON UPDATE
+                })
+            }
+            Token::Unique => {
+                self.consume_token(Token::Unique)?;
+                self.consume_token(Token::LeftParen)?;
+
+                let mut columns = Vec::new();
+                loop {
+                    columns.push(self.parse_identifier()?);
+
+                    if self.current_token() == &Token::Comma {
+                        self.advance();
+                    } else {
+                        break;
+                    }
+                }
+
+                self.consume_token(Token::RightParen)?;
+
+                Ok(TableConstraint::Unique { columns })
+            }
+            Token::Check => {
+                self.consume_token(Token::Check)?;
+                self.consume_token(Token::LeftParen)?;
+
+                let expression = self.parse_logical_expression()?;
+
+                self.consume_token(Token::RightParen)?;
+
+                Ok(TableConstraint::Check { expression })
+            }
+            token => Err(ShardForgeError::Parse {
+                message: format!(
+                    "Expected constraint type (PRIMARY, FOREIGN, UNIQUE, CHECK), found: {:?}",
+                    token
+                ),
+            }),
+        }
     }
 
+    /// Parse a complete expression (entry point)
     fn parse_expression(&mut self) -> Result<Expression> {
+        self.parse_additive_expression()
+    }
+
+    /// Parse logical expression (AND/OR operations)
+    fn parse_logical_expression(&mut self) -> Result<Expression> {
+        let mut left = self.parse_comparison_expression()?;
+
+        while matches!(self.current_token(), Token::And | Token::Or) {
+            let op = match self.current_token() {
+                Token::And => BinaryOperator::And,
+                Token::Or => BinaryOperator::Or,
+                _ => unreachable!(),
+            };
+            self.advance();
+
+            let right = self.parse_comparison_expression()?;
+            left = Expression::BinaryOp {
+                left: Box::new(left),
+                op,
+                right: Box::new(right),
+            };
+        }
+
+        Ok(left)
+    }
+
+    /// Parse comparison expression (=, !=, <, >, etc.)
+    fn parse_comparison_expression(&mut self) -> Result<Expression> {
+        let mut left = self.parse_additive_expression()?;
+
+        while matches!(
+            self.current_token(),
+            Token::Equals
+                | Token::NotEquals
+                | Token::LessThan
+                | Token::LessThanOrEquals
+                | Token::GreaterThan
+                | Token::GreaterThanOrEquals
+                | Token::Like
+                | Token::In
+                | Token::Is
+        ) {
+            let op = match self.current_token() {
+                Token::Equals => BinaryOperator::Equal,
+                Token::NotEquals => BinaryOperator::NotEqual,
+                Token::LessThan => BinaryOperator::LessThan,
+                Token::LessThanOrEquals => BinaryOperator::LessThanOrEqual,
+                Token::GreaterThan => BinaryOperator::GreaterThan,
+                Token::GreaterThanOrEquals => BinaryOperator::GreaterThanOrEqual,
+                Token::Like => BinaryOperator::Like,
+                Token::In => {
+                    self.advance();
+                    return self.parse_in_expression(left);
+                }
+                Token::Is => {
+                    self.advance();
+                    return self.parse_is_null_expression(left);
+                }
+                _ => unreachable!(),
+            };
+            self.advance();
+
+            let right = self.parse_additive_expression()?;
+            left = Expression::BinaryOp {
+                left: Box::new(left),
+                op,
+                right: Box::new(right),
+            };
+        }
+
+        Ok(left)
+    }
+
+    /// Parse additive expression (+, -)
+    fn parse_additive_expression(&mut self) -> Result<Expression> {
+        let mut left = self.parse_multiplicative_expression()?;
+
+        while matches!(self.current_token(), Token::Plus | Token::Minus) {
+            let op = match self.current_token() {
+                Token::Plus => BinaryOperator::Add,
+                Token::Minus => BinaryOperator::Subtract,
+                _ => unreachable!(),
+            };
+            self.advance();
+
+            let right = self.parse_multiplicative_expression()?;
+            left = Expression::BinaryOp {
+                left: Box::new(left),
+                op,
+                right: Box::new(right),
+            };
+        }
+
+        Ok(left)
+    }
+
+    /// Parse multiplicative expression (*, /, %)
+    fn parse_multiplicative_expression(&mut self) -> Result<Expression> {
+        let mut left = self.parse_unary_expression()?;
+
+        while matches!(self.current_token(), Token::Multiply | Token::Divide | Token::Modulo) {
+            let op = match self.current_token() {
+                Token::Multiply => BinaryOperator::Multiply,
+                Token::Divide => BinaryOperator::Divide,
+                Token::Modulo => BinaryOperator::Modulo,
+                _ => unreachable!(),
+            };
+            self.advance();
+
+            let right = self.parse_unary_expression()?;
+            left = Expression::BinaryOp {
+                left: Box::new(left),
+                op,
+                right: Box::new(right),
+            };
+        }
+
+        Ok(left)
+    }
+
+    /// Parse unary expression (NOT, -, +)
+    fn parse_unary_expression(&mut self) -> Result<Expression> {
+        match self.current_token() {
+            Token::Not => {
+                self.advance();
+                let expr = self.parse_unary_expression()?;
+                Ok(Expression::UnaryOp {
+                    op: UnaryOperator::Not,
+                    expr: Box::new(expr),
+                })
+            }
+            Token::Minus => {
+                self.advance();
+                let expr = self.parse_unary_expression()?;
+                Ok(Expression::UnaryOp {
+                    op: UnaryOperator::Minus,
+                    expr: Box::new(expr),
+                })
+            }
+            Token::Plus => {
+                self.advance();
+                let expr = self.parse_unary_expression()?;
+                Ok(Expression::UnaryOp {
+                    op: UnaryOperator::Plus,
+                    expr: Box::new(expr),
+                })
+            }
+            _ => self.parse_primary_expression(),
+        }
+    }
+
+    /// Parse primary expression (literals, identifiers, function calls, parentheses)
+    fn parse_primary_expression(&mut self) -> Result<Expression> {
         match self.current_token() {
             Token::StringLit(s) => {
                 let s = s.clone();
@@ -777,12 +1342,84 @@ impl SqlParser {
             Token::Identifier(name) => {
                 let name = name.clone();
                 self.advance();
-                Ok(Expression::Column(name))
+
+                // Check if this is a function call
+                if self.current_token() == &Token::LeftParen {
+                    self.advance();
+
+                    let mut args = Vec::new();
+                    if self.current_token() != &Token::RightParen {
+                        loop {
+                            args.push(self.parse_expression()?);
+
+                            if self.current_token() == &Token::Comma {
+                                self.advance();
+                            } else {
+                                break;
+                            }
+                        }
+                    }
+
+                    self.consume_token(Token::RightParen)?;
+
+                    Ok(Expression::Function { name, args })
+                } else {
+                    Ok(Expression::Column(name))
+                }
+            }
+            Token::LeftParen => {
+                self.advance();
+                let expr = self.parse_logical_expression()?;
+                self.consume_token(Token::RightParen)?;
+                Ok(expr)
             }
             token => Err(ShardForgeError::Parse {
                 message: format!("Unexpected token in expression: {:?}", token),
             }),
         }
+    }
+
+    /// Parse IN expression
+    fn parse_in_expression(&mut self, expr: Expression) -> Result<Expression> {
+        let negated = false; // TODO: Handle NOT IN
+
+        self.consume_token(Token::LeftParen)?;
+
+        let mut list = Vec::new();
+        loop {
+            list.push(self.parse_expression()?);
+
+            if self.current_token() == &Token::Comma {
+                self.advance();
+            } else {
+                break;
+            }
+        }
+
+        self.consume_token(Token::RightParen)?;
+
+        Ok(Expression::In {
+            expr: Box::new(expr),
+            list,
+            negated,
+        })
+    }
+
+    /// Parse IS NULL expression
+    fn parse_is_null_expression(&mut self, expr: Expression) -> Result<Expression> {
+        let negated = if self.current_token() == &Token::Not {
+            self.advance();
+            true
+        } else {
+            false
+        };
+
+        self.consume_token(Token::Null)?;
+
+        Ok(Expression::IsNull {
+            expr: Box::new(expr),
+            negated,
+        })
     }
 }
 

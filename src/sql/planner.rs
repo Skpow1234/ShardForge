@@ -4,6 +4,7 @@ use shardforge_core::{Result, ShardForgeError};
 
 use crate::sql::ast::*;
 use crate::sql::executor::SchemaCatalog;
+use crate::sql::statistics::{CostModel, StatisticsCollector};
 
 /// Query planner
 pub struct QueryPlanner {
@@ -69,7 +70,12 @@ pub enum PhysicalPlan {
 }
 
 /// Query optimizer
-pub struct QueryOptimizer;
+pub struct QueryOptimizer {
+    /// Statistics collector
+    statistics: StatisticsCollector,
+    /// Cost model
+    cost_model: CostModel,
+}
 
 /// Cost estimation
 #[derive(Debug, Clone)]
@@ -186,16 +192,35 @@ impl QueryPlanner {
 impl QueryOptimizer {
     /// Create a new query optimizer
     pub fn new() -> Self {
-        Self
+        Self {
+            statistics: StatisticsCollector::new(),
+            cost_model: CostModel::new(),
+        }
+    }
+
+    /// Create a query optimizer with custom statistics
+    pub fn with_statistics(statistics: StatisticsCollector) -> Self {
+        Self {
+            statistics,
+            cost_model: CostModel::new(),
+        }
+    }
+
+    /// Get a reference to the statistics collector
+    pub fn statistics(&self) -> &StatisticsCollector {
+        &self.statistics
+    }
+
+    /// Get a mutable reference to the statistics collector
+    pub fn statistics_mut(&mut self) -> &mut StatisticsCollector {
+        &mut self.statistics
     }
 
     /// Optimize a logical plan to create a physical plan
     pub fn optimize(&self, logical_plan: LogicalPlan) -> Result<PhysicalPlan> {
         match logical_plan {
             LogicalPlan::TableScan { table_name, projection, filter } => {
-                // For now, always use sequential scan
-                // In the future, we'll check for indexes and use them when beneficial
-                Ok(PhysicalPlan::SeqScan { table_name, projection, filter })
+                self.optimize_table_scan(table_name, projection, filter)
             }
             LogicalPlan::Insert { table_name, columns, values } => {
                 Ok(PhysicalPlan::Insert { table_name, columns, values })
@@ -217,23 +242,175 @@ impl QueryOptimizer {
         }
     }
 
+    /// Optimize a table scan operation
+    fn optimize_table_scan(
+        &self,
+        table_name: String,
+        projection: Option<Vec<String>>,
+        filter: Option<Expression>,
+    ) -> Result<PhysicalPlan> {
+        // Check if we have statistics for this table
+        if let Some(table_stats) = self.statistics.get_table_stats(&table_name) {
+            // Estimate selectivity of the filter
+            let selectivity = if let Some(ref filter_expr) = filter {
+                self.estimate_filter_selectivity(&table_name, filter_expr)
+            } else {
+                1.0
+            };
+
+            // Estimate costs for different access methods
+            let seq_scan_cost = self.cost_model.estimate_seq_scan_cost(
+                table_stats.row_count,
+                table_stats.avg_row_size,
+            );
+
+            let index_scan_cost = self.cost_model.estimate_index_scan_cost(
+                selectivity,
+                table_stats.row_count,
+            );
+
+            // Choose the cheaper option (simplified - assumes an index exists)
+            if selectivity < 0.2 && index_scan_cost < seq_scan_cost {
+                // TODO: Implement actual index selection
+                Ok(PhysicalPlan::SeqScan {
+                    table_name,
+                    projection,
+                    filter,
+                })
+            } else {
+                Ok(PhysicalPlan::SeqScan {
+                    table_name,
+                    projection,
+                    filter,
+                })
+            }
+        } else {
+            // No statistics available, default to sequential scan
+            Ok(PhysicalPlan::SeqScan {
+                table_name,
+                projection,
+                filter,
+            })
+        }
+    }
+
+    /// Estimate the selectivity of a filter expression
+    fn estimate_filter_selectivity(&self, table_name: &str, filter: &Expression) -> f64 {
+        match filter {
+            Expression::BinaryOp { left, op, right } => {
+                if let (Expression::Column(col_name), Expression::Literal(_)) = (left.as_ref(), right.as_ref()) {
+                    let operator = match op {
+                        BinaryOperator::Equal => "=",
+                        BinaryOperator::NotEqual => "!=",
+                        BinaryOperator::LessThan => "<",
+                        BinaryOperator::LessThanOrEqual => "<=",
+                        BinaryOperator::GreaterThan => ">",
+                        BinaryOperator::GreaterThanOrEqual => ">=",
+                        _ => "=",
+                    };
+                    
+                    self.statistics.estimate_selectivity(table_name, col_name, operator, b"")
+                } else if matches!(op, BinaryOperator::And) {
+                    // For AND, multiply selectivities
+                    let left_sel = self.estimate_filter_selectivity(table_name, left);
+                    let right_sel = self.estimate_filter_selectivity(table_name, right);
+                    left_sel * right_sel
+                } else if matches!(op, BinaryOperator::Or) {
+                    // For OR, use inclusion-exclusion principle
+                    let left_sel = self.estimate_filter_selectivity(table_name, left);
+                    let right_sel = self.estimate_filter_selectivity(table_name, right);
+                    left_sel + right_sel - (left_sel * right_sel)
+                } else {
+                    0.5 // Default selectivity
+                }
+            }
+            _ => 0.5, // Default selectivity
+        }
+    }
+
     /// Estimate the cost of a physical plan
-    pub fn estimate_cost(&self, _plan: &PhysicalPlan) -> Cost {
-        // Simplified cost estimation
-        Cost {
-            cpu_cost: 100.0,
-            io_cost: 50.0,
-            network_cost: 0.0,
-            total_cost: 150.0,
+    pub fn estimate_cost(&self, plan: &PhysicalPlan) -> Cost {
+        match plan {
+            PhysicalPlan::SeqScan { table_name, filter, .. } => {
+                if let Some(table_stats) = self.statistics.get_table_stats(table_name) {
+                    let cpu_cost = self.cost_model.estimate_seq_scan_cost(
+                        table_stats.row_count,
+                        table_stats.avg_row_size,
+                    );
+                    
+                    let selectivity = if let Some(filter_expr) = filter {
+                        self.estimate_filter_selectivity(table_name, filter_expr)
+                    } else {
+                        1.0
+                    };
+
+                    Cost {
+                        cpu_cost,
+                        io_cost: cpu_cost * 0.5,
+                        network_cost: 0.0,
+                        total_cost: cpu_cost * 1.5 * selectivity,
+                    }
+                } else {
+                    Cost {
+                        cpu_cost: 100.0,
+                        io_cost: 50.0,
+                        network_cost: 0.0,
+                        total_cost: 150.0,
+                    }
+                }
+            }
+            PhysicalPlan::IndexScan { table_name, .. } => {
+                if let Some(table_stats) = self.statistics.get_table_stats(table_name) {
+                    let cpu_cost = self.cost_model.estimate_index_scan_cost(0.1, table_stats.row_count);
+                    Cost {
+                        cpu_cost,
+                        io_cost: cpu_cost * 0.3,
+                        network_cost: 0.0,
+                        total_cost: cpu_cost * 1.3,
+                    }
+                } else {
+                    Cost {
+                        cpu_cost: 50.0,
+                        io_cost: 20.0,
+                        network_cost: 0.0,
+                        total_cost: 70.0,
+                    }
+                }
+            }
+            _ => Cost {
+                cpu_cost: 10.0,
+                io_cost: 5.0,
+                network_cost: 0.0,
+                total_cost: 15.0,
+            },
         }
     }
 
     /// Check if an index can be used for a given filter condition
-    pub fn can_use_index(&self, _filter: &Expression, _index_columns: &[String]) -> bool {
-        // Simplified index usage check
-        // In a real implementation, this would analyze the filter expression
-        // to see if it matches the index columns
-        false
+    pub fn can_use_index(&self, filter: &Expression, index_columns: &[String]) -> bool {
+        // Check if the filter references the index columns
+        match filter {
+            Expression::BinaryOp { left, op, .. } => {
+                if let Expression::Column(col_name) = left.as_ref() {
+                    // Check if column is the first column of the index
+                    if let Some(first_col) = index_columns.first() {
+                        if first_col == col_name {
+                            // Check if operator is index-compatible
+                            return matches!(
+                                op,
+                                BinaryOperator::Equal
+                                    | BinaryOperator::LessThan
+                                    | BinaryOperator::LessThanOrEqual
+                                    | BinaryOperator::GreaterThan
+                                    | BinaryOperator::GreaterThanOrEqual
+                            );
+                        }
+                    }
+                }
+                false
+            }
+            _ => false,
+        }
     }
 }
 
